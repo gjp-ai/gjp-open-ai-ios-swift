@@ -23,14 +23,18 @@ final class GJP_AIUITests: XCTestCase {
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testPrimaryTabNavigationExists() throws {
         let app = XCUIApplication()
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        XCTAssertTrue(app.tabBars.buttons["Websites"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons["Q&A"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Articles"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Images"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Videos"].exists)
+
+        app.tabBars.buttons["Articles"].tap()
+        XCTAssertTrue(app.navigationBars["Articles"].waitForExistence(timeout: 2))
     }
 
     @MainActor
