@@ -12,7 +12,7 @@ struct WebsitesScreen: View {
     ]
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 100, cacheKey: "websites") { page, size, language, search, tags in
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 100, cacheKey: "websites", imageCache: .websites) { page, size, language, search, tags in
             try await api.websites(page: page, size: size, language: language, name: search, tags: tags)
         })
     }

@@ -6,7 +6,7 @@ struct ArticleRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let coverUrl = article.coverImageUrl, !coverUrl.isEmpty {
-                RemoteImage(urlString: coverUrl, title: article.title, systemFallback: "newspaper", contentMode: .fit)
+                RemoteImage(urlString: coverUrl, title: article.title, systemFallback: "newspaper", contentMode: .fit, cache: .articles)
                     .frame(maxWidth: .infinity, minHeight: 180)
                     .clipped()
             }

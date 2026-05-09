@@ -150,6 +150,13 @@ enum L10n {
         "dark": [.en: "Dark", .zh: "深色"],
         "done": [.en: "Done", .zh: "完成"],
         "loadMore": [.en: "Load more", .zh: "加载更多"],
+        "cache": [.en: "Cache", .zh: "缓存"],
+        "dataCache": [.en: "Data Cache", .zh: "数据缓存"],
+        "mediaCache": [.en: "Media Cache", .zh: "媒体缓存"],
+        "clearAllCache": [.en: "Clear All Cache", .zh: "清空所有缓存"],
+        "clear": [.en: "Clear", .zh: "清空"],
+        "websiteLogos": [.en: "Website Logos", .zh: "网站图标"],
+        "articleCovers": [.en: "Article Covers", .zh: "文章封面"],
         "brandName": [.en: "GJP AI", .zh: "GJP AI"]
     ]
 }

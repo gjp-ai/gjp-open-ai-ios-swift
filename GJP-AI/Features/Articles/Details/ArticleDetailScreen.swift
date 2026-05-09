@@ -22,7 +22,7 @@ struct ArticleDetailScreen: View {
             case let .content(article):
                 VStack(alignment: .leading, spacing: 0) {
                     if let coverUrl = article.coverImageUrl, !coverUrl.isEmpty {
-                        RemoteImage(urlString: coverUrl, title: article.title, systemFallback: "newspaper", contentMode: .fit)
+                        RemoteImage(urlString: coverUrl, title: article.title, systemFallback: "newspaper", contentMode: .fit, cache: .articles)
                             .frame(maxWidth: .infinity)
                             .overlay(alignment: .bottomLeading) {
                                 LinearGradient(

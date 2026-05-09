@@ -6,7 +6,7 @@ struct ImagesScreen: View {
     @State private var selectedImage: MediaItem?
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 50, cacheKey: "images") { page, size, language, search, tags in
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 50, cacheKey: "images", imageCache: .media) { page, size, language, search, tags in
             try await api.images(page: page, size: size, language: language, name: search, tags: tags)
         })
     }

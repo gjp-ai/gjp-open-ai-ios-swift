@@ -111,6 +111,12 @@ struct MoreScreen: View {
                             .tag(accent)
                         }
                     }
+
+                    NavigationLink {
+                        CacheSettingsScreen()
+                    } label: {
+                        Label(L10n.text("cache", app.language), systemImage: "internaldrive")
+                    }
                 } header: {
                     Text(L10n.text("settings", app.language))
                 }

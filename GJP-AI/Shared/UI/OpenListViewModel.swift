@@ -18,26 +18,28 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
     private let pageSize: Int
     private let loadPage: (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>
     private let cacheKey: String?
+    private let imageCache: ImageCache
     private var currentLanguage: LanguageCode = .en
     private var rawItems: [Item] = []
-
-    init(pageSize: Int = 50, cacheKey: String? = nil, loadPage: @escaping (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>) {
+ 
+    init(pageSize: Int = 50, cacheKey: String? = nil, imageCache: ImageCache = .media, loadPage: @escaping (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>) {
         self.pageSize = pageSize
         self.cacheKey = cacheKey
+        self.imageCache = imageCache
         self.loadPage = loadPage
     }
-
+ 
     private func updateFilteredItems() {
         items = filtered(rawItems)
     }
-
+ 
     var canLoadMore: Bool {
         currentPage + 1 < totalPages
     }
-
+ 
     func load(language: LanguageCode) async {
         currentLanguage = language
-
+ 
         // Restore from disk cache immediately so the UI shows content at once
         var hasCachedContent = false
         if let key = cacheKey, let cached: [Item] = CacheManager.load(forKey: "\(key)_\(language.rawValue)") {
@@ -45,11 +47,11 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
             updateFilteredItems()
             state = items.isEmpty ? .loading : .content(items)
             hasCachedContent = !items.isEmpty
-
+ 
             // Warm ImageCache in background for all cached items so images
             // are ready before the user scrolls (avoids loading spinners on 2nd visit)
             let urls = cached.flatMap { $0.imageURLsForPrefetch }
-            ImageCache.shared.prefetch(urlStrings: urls)
+            imageCache.prefetch(urlStrings: urls)
         } else {
             state = .loading
         }

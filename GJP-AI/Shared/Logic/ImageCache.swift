@@ -1,33 +1,34 @@
 import UIKit
 
-// MARK: - ImageCache
-
 /// A two-level (memory + disk) image cache that deliberately ignores
 /// server-sent `Cache-Control: no-store` headers.
-/// This is necessary because the API server returns `no-cache, no-store`
-/// on all image responses, which prevents `AsyncImage` / `URLSession` from
-/// ever caching images — causing blank images on every scroll/reuse.
 final class ImageCache {
-    static let shared = ImageCache()
+    static let websites = ImageCache(namespace: "websites", diskCapacity: 50 * 1024 * 1024)
+    static let articles = ImageCache(namespace: "articles", diskCapacity: 100 * 1024 * 1024)
+    static let media = ImageCache(namespace: "media", diskCapacity: 200 * 1024 * 1024)
 
-    // MARK: Memory cache
+    // MARK: Memory cache (shared cost limit across instances is fine, or per instance)
     private let memory = NSCache<NSURL, UIImage>()
 
-    // MARK: Disk cache via a dedicated URLCache that ignores cache directives
+    // MARK: Disk cache via a dedicated URLCache
+    private let namespace: String
     private let urlCache: URLCache
     private let session: URLSession
 
-    private init() {
-        // 50 MB memory, 200 MB disk — enough to hold a full screen of images
-        urlCache = URLCache(memoryCapacity: 50 * 1024 * 1024,
-                            diskCapacity: 200 * 1024 * 1024)
-        memory.totalCostLimit = 50 * 1024 * 1024
+    private init(namespace: String, diskCapacity: Int) {
+        self.namespace = namespace
+        let cacheDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("gjp_image_cache")
+            .appendingPathComponent(namespace)
+
+        // 20 MB memory per instance, custom disk capacity
+        urlCache = URLCache(memoryCapacity: 20 * 1024 * 1024,
+                            diskCapacity: diskCapacity,
+                            directory: cacheDirectory)
+        memory.totalCostLimit = 20 * 1024 * 1024
 
         let config = URLSessionConfiguration.default
         config.urlCache = urlCache
-        // Use .returnCacheDataElseLoad so we serve from cache even when
-        // the server says no-store.  On first load the request is made
-        // normally and we manually store the result ourselves.
         config.requestCachePolicy = .returnCacheDataElseLoad
         session = URLSession(configuration: config)
     }
@@ -37,13 +38,10 @@ final class ImageCache {
     func image(for url: URL) async throws -> UIImage {
         let key = url as NSURL
 
-        // 1. Check in-memory cache (instant, no I/O)
         if let cached = memory.object(forKey: key) {
             return cached
         }
 
-        // 2. Build the request — use .returnCacheDataElseLoad so our disk
-        //    cache is consulted before hitting the network.
         let request = URLRequest(url: url,
                                  cachePolicy: .returnCacheDataElseLoad,
                                  timeoutInterval: 30)
@@ -54,9 +52,6 @@ final class ImageCache {
             throw URLError(.cannotDecodeContentData)
         }
 
-        // 3. Manually store in URLCache — this bypasses the server's
-        //    Cache-Control: no-store directive, which is the root cause of
-        //    images not persisting between scroll positions.
         if let httpResponse = response as? HTTPURLResponse {
             let cacheableResponse = CachedURLResponse(response: httpResponse,
                                                       data: data,
@@ -64,16 +59,14 @@ final class ImageCache {
             urlCache.storeCachedResponse(cacheableResponse, for: request)
         }
 
-        // 4. Store in memory cache
         let cost = data.count
         memory.setObject(image, forKey: key, cost: cost)
 
         return image
     }
 
-    // MARK: - Shared URL parser (used by RemoteImage and prefetch)
+    // MARK: - Shared URL parser
 
-    /// Converts a raw URL string (possibly with spaces or unencoded chars) to a URL.
     static func parsedURL(from raw: String) -> URL? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
@@ -85,18 +78,62 @@ final class ImageCache {
 
     // MARK: - Background prefetch
 
-    /// Warms the cache for a list of URL strings (e.g. from a JSON cache restore).
-    /// Runs at background priority so it doesn't compete with the UI.
     func prefetch(urlStrings: [String]) {
         let urls = urlStrings.compactMap { ImageCache.parsedURL(from: $0) }
         guard !urls.isEmpty else { return }
         Task.detached(priority: .background) { [weak self] in
             guard let self else { return }
             for url in urls {
-                // Skip if already in memory cache
                 if self.memory.object(forKey: url as NSURL) != nil { continue }
                 try? await self.image(for: url)
             }
         }
+    }
+
+    // MARK: - Management
+
+    var diskSize: Int {
+        urlCache.currentDiskUsage
+    }
+
+    var lastModified: Date? {
+        guard let directory = getCacheDirectory() else { return nil }
+        let attributes = try? FileManager.default.attributesOfItem(atPath: directory.path)
+        return attributes?[.modificationDate] as? Date
+    }
+
+    func clear() {
+        memory.removeAllObjects()
+        urlCache.removeAllCachedResponses()
+    }
+
+    private func getCacheDirectory() -> URL? {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("gjp_image_cache")
+            .appendingPathComponent(namespace)
+    }
+
+    struct CachedFile: Identifiable {
+        let id: String
+        let url: URL
+        let size: Int64
+        let date: Date
+    }
+
+    func allCachedFiles() -> [CachedFile] {
+        guard let directory = getCacheDirectory()?.appendingPathComponent("fsCachedData") else { return [] }
+        let keys: [URLResourceKey] = [.fileSizeKey, .contentModificationDateKey]
+        
+        let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: keys, options: .skipsHiddenFiles)
+        
+        return files?.compactMap { fileURL -> CachedFile? in
+            let resources = try? fileURL.resourceValues(forKeys: Set(keys))
+            return CachedFile(
+                id: fileURL.lastPathComponent,
+                url: fileURL,
+                size: Int64(resources?.fileSize ?? 0),
+                date: resources?.contentModificationDate ?? Date()
+            )
+        }.sorted { $0.date > $1.date } ?? []
     }
 }

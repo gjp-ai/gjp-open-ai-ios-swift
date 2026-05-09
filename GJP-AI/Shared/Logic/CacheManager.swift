@@ -66,4 +66,38 @@ enum CacheManager {
             return nil
         }
     }
+
+    // MARK: - Management
+
+    static func size(forKey key: String) -> Int64 {
+        guard let directory = getCacheDirectory() else { return 0 }
+        let fileURL = directory.appendingPathComponent("\(key).json")
+        let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
+        return attributes?[.size] as? Int64 ?? 0
+    }
+
+    static func clear(forKey key: String) {
+        guard let directory = getCacheDirectory() else { return }
+        let fileURL = directory.appendingPathComponent("\(key).json")
+        try? FileManager.default.removeItem(at: fileURL)
+    }
+
+    static func clearAll() {
+        guard let directory = getCacheDirectory() else { return }
+        try? FileManager.default.removeItem(at: directory)
+    }
+
+    static func lastModified(forKey key: String) -> Date? {
+        guard let directory = getCacheDirectory() else { return nil }
+        let fileURL = directory.appendingPathComponent("\(key).json")
+        let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
+        return attributes?[.modificationDate] as? Date
+    }
+
+    static func loadRaw(forKey key: String) -> String? {
+        guard let directory = getCacheDirectory() else { return nil }
+        let fileURL = directory.appendingPathComponent("\(key).json")
+        guard let data = try? Data(contentsOf: fileURL) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
 }

@@ -109,6 +109,7 @@ struct RemoteImage: View {
     let title: String
     let systemFallback: String
     var contentMode: ContentMode = .fill
+    var cache: ImageCache = .media
 
     private var parsedURL: URL? {
         guard let raw = urlString else { return nil }
@@ -121,7 +122,7 @@ struct RemoteImage: View {
                 if url.pathExtension.lowercased() == "svg" {
                     SVGImage(url: url, contentMode: contentMode)
                 } else {
-                    CachedAsyncImage(url: url, contentMode: contentMode, systemFallback: systemFallback)
+                    CachedAsyncImage(url: url, contentMode: contentMode, systemFallback: systemFallback, cache: cache)
                         // KEY FIX: bind view identity to the URL so LazyVStack
                         // recycles don't keep a stale loading phase for the new URL.
                         .id(url)
@@ -144,6 +145,7 @@ private struct CachedAsyncImage: View {
     let url: URL
     let contentMode: ContentMode
     let systemFallback: String
+    let cache: ImageCache
 
     enum LoadPhase {
         case loading
@@ -185,7 +187,7 @@ private struct CachedAsyncImage: View {
 
     private func load(_ url: URL) async {
         do {
-            let image = try await ImageCache.shared.image(for: url)
+            let image = try await cache.image(for: url)
             withAnimation(.easeIn(duration: 0.2)) {
                 phase = .success(image)
             }

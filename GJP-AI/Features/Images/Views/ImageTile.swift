@@ -11,7 +11,7 @@ struct ImageTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            RemoteImage(urlString: displayUrl, title: item.altText ?? item.displayTitle, systemFallback: "photo", contentMode: .fit)
+            RemoteImage(urlString: displayUrl, title: item.altText ?? item.displayTitle, systemFallback: "photo", contentMode: .fit, cache: .media)
                 .frame(maxWidth: .infinity, minHeight: 200)
                 .clipped()
 

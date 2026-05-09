@@ -7,7 +7,7 @@ struct ArticlesScreen: View {
 
     init(api: OpenAPIClient = OpenAPIClient()) {
         self.api = api
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 50, cacheKey: "articles") { page, size, language, search, tags in
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 50, cacheKey: "articles", imageCache: .articles) { page, size, language, search, tags in
             try await api.articles(page: page, size: size, language: language, title: search, tags: tags)
         })
     }

@@ -6,7 +6,7 @@ struct WebsiteRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(alignment: .center, spacing: 10) {
-                RemoteImage(urlString: website.logoUrl, title: website.name, systemFallback: "globe")
+                RemoteImage(urlString: website.logoUrl, title: website.name, systemFallback: "globe", cache: .websites)
                     .frame(width: 40, height: 40)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay {
