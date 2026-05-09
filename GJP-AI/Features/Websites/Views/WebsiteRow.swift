@@ -4,36 +4,58 @@ struct WebsiteRow: View {
     let website: Website
 
     var body: some View {
-        HStack(spacing: 14) {
-            RemoteImage(urlString: website.logoUrl, title: website.name, systemFallback: "globe")
-                .frame(width: 54, height: 54)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color(.separator).opacity(0.2), lineWidth: 0.5)
-                }
-            VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .center, spacing: 10) {
+                RemoteImage(urlString: website.logoUrl, title: website.name, systemFallback: "globe")
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color(.separator).opacity(0.18), lineWidth: 0.5)
+                    }
+                    .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
+
                 Text(website.name)
-                    .font(.headline)
-                if let description = website.description, !description.isEmpty {
-                    Text(description)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-                TagFlow(tags: website.tags)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .allowsTightening(true)
+                    .minimumScaleFactor(0.82)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Spacer()
-            if let urlString = website.url, let url = URL(string: urlString) {
-                Link(destination: url) {
-                    Image(systemName: "arrow.up.right")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 34, height: 34)
-                        .background(Color.accentColor.gradient, in: Circle())
-                }
-                .accessibilityLabel(website.name)
+
+            if let description = website.description?.trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)
+        .padding(10)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color(.separator).opacity(0.18), lineWidth: 0.5)
+        }
+        .shadow(color: .black.opacity(0.04), radius: 6, y: 3)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(website.name)
     }
+}
+
+extension Website {
+    var normalizedURL: URL? {
+        guard let trimmed = url?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+
+        if let parsed = URL(string: trimmed), parsed.scheme != nil {
+            return parsed
+        }
+
+        return URL(string: "https://\(trimmed)")
+    }
+
 }
