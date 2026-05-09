@@ -84,17 +84,17 @@ struct MoreScreen: View {
                         get: { app.language },
                         set: { app.setLanguage($0) }
                     )) {
-                        Text("English").tag(LanguageCode.en)
-                        Text("中文").tag(LanguageCode.zh)
+                        Label("English", systemImage: "globe.americas.fill").tag(LanguageCode.en)
+                        Label("中文", systemImage: "globe.asia.australia.fill").tag(LanguageCode.zh)
                     }
 
                     Picker(L10n.text("appearance", app.language), selection: Binding(
                         get: { app.themeMode },
                         set: { app.setThemeMode($0) }
                     )) {
-                        Text(L10n.text("system", app.language)).tag(ThemeMode.system)
-                        Text(L10n.text("light", app.language)).tag(ThemeMode.light)
-                        Text(L10n.text("dark", app.language)).tag(ThemeMode.dark)
+                        Label(L10n.text("system", app.language), systemImage: "circle.lefthalf.filled").tag(ThemeMode.system)
+                        Label(L10n.text("light", app.language), systemImage: "sun.max.fill").tag(ThemeMode.light)
+                        Label(L10n.text("dark", app.language), systemImage: "moon.fill").tag(ThemeMode.dark)
                     }
 
                     Picker(L10n.text("accent", app.language), selection: Binding(
@@ -102,14 +102,47 @@ struct MoreScreen: View {
                         set: { app.setAccentChoice($0) }
                     )) {
                         ForEach(AccentChoice.allCases) { accent in
-                            Text(accent.rawValue.capitalized).tag(accent)
+                            Label {
+                                Text(accent.rawValue.capitalized)
+                            } icon: {
+                                Image(systemName: "circle.fill")
+                                    .foregroundStyle(accentColor(accent))
+                            }
+                            .tag(accent)
                         }
                     }
                 } header: {
                     Text(L10n.text("settings", app.language))
                 }
+
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 6) {
+                            Text(L10n.text("brandName", app.language))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .tracking(2)
+                            Text("v1.0")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+                }
             }
             .navigationTitle(L10n.text("more", app.language))
+        }
+    }
+
+    private func accentColor(_ accent: AccentChoice) -> Color {
+        switch accent {
+        case .blue: .blue
+        case .purple: .purple
+        case .green: .green
+        case .orange: .orange
+        case .red: .red
         }
     }
 }

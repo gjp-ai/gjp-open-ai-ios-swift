@@ -5,6 +5,8 @@ struct SplashScreen: View {
     @StateObject private var viewModel: SplashModel
     @State private var pulsing = false
     @State private var rotation = 0.0
+    @State private var logoOpacity = 0.0
+    @State private var brandOpacity = 0.0
     let onComplete: () -> Void
 
     init(app: AppModel, onComplete: @escaping () -> Void) {
@@ -14,25 +16,39 @@ struct SplashScreen: View {
 
     var body: some View {
         ZStack {
-            Color(uiColor: .systemBackground)
-                .ignoresSafeArea()
-            
+            // Subtle gradient background
+            LinearGradient(
+                stops: [
+                    .init(color: Color(uiColor: .systemBackground), location: 0),
+                    .init(color: Color(uiColor: .systemBackground), location: 0.6),
+                    .init(color: app.tint.opacity(0.06), location: 1.0)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
             VStack(spacing: 32) {
                 Spacer()
-                
+
                 // Brand Identity with pulsing animation
                 Image("SplashIcon")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 140, height: 140)
                     .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                    .scaleEffect(pulsing ? 1.5 : 1.0)
+                    .shadow(color: app.tint.opacity(0.2), radius: pulsing ? 30 : 10, y: 4)
+                    .scaleEffect(pulsing ? 1.08 : 1.0)
+                    .opacity(logoOpacity)
                     .onAppear {
-                        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                        withAnimation(.easeOut(duration: 0.6)) {
+                            logoOpacity = 1.0
+                        }
+                        withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
                             pulsing = true
                         }
                     }
-                
+
                 if let error = viewModel.error {
                     // Error Handling UI
                     VStack(spacing: 16) {
@@ -41,7 +57,7 @@ struct SplashScreen: View {
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 48)
-                        
+
                         Button {
                             Task { await viewModel.initialize(onComplete: onComplete) }
                         } label: {
@@ -57,12 +73,12 @@ struct SplashScreen: View {
                     // Custom Sleek Loading Indicator
                     ZStack {
                         Circle()
-                            .stroke(app.tint.opacity(0.1), lineWidth: 3)
+                            .stroke(app.tint.opacity(0.08), lineWidth: 3)
                             .frame(width: 40, height: 40)
-                        
+
                         Circle()
                             .trim(from: 0, to: 0.3)
-                            .stroke(app.tint, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                            .stroke(app.tint.gradient, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                             .frame(width: 40, height: 40)
                             .rotationEffect(Angle(degrees: rotation))
                             .onAppear {
@@ -73,16 +89,22 @@ struct SplashScreen: View {
                     }
                     .padding(.top, 20)
                 }
-                
+
                 Spacer()
-                
-                // Optional: Brand footer or version
+
+                // Brand footer
                 Text(L10n.text("brandName", app.language))
                     .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.secondary.opacity(0.6))
-                    .tracking(3)
-                    .padding(.bottom, 20)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary.opacity(0.5))
+                    .tracking(4)
+                    .opacity(brandOpacity)
+                    .padding(.bottom, 24)
+                    .onAppear {
+                        withAnimation(.easeOut(duration: 0.8).delay(0.3)) {
+                            brandOpacity = 1.0
+                        }
+                    }
             }
         }
         .animation(.spring(), value: viewModel.error)
