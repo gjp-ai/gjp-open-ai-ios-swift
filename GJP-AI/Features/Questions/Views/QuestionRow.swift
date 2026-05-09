@@ -8,7 +8,7 @@ struct QuestionRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Button {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                withAnimation(.easeInOut(duration: 0.2)) {
                     isExpanded.toggle()
                 }
             } label: {
@@ -41,16 +41,13 @@ struct QuestionRow: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .transition(
                         .asymmetric(
-                            insertion: .opacity
-                                .combined(with: .move(edge: .top))
-                                .combined(with: .scale(scale: 0.98, anchor: .top)),
+                            insertion: .opacity.combined(with: .move(edge: .top)),
                             removal: .opacity
-                                .combined(with: .scale(scale: 0.98, anchor: .top))
                         )
                     )
             }
         }
-        .animation(.spring(response: 0.32, dampingFraction: 0.88), value: isExpanded)
+        .animation(.easeInOut(duration: 0.2), value: isExpanded)
     }
 }
 
@@ -72,7 +69,6 @@ private struct QuestionAnswerHTMLView: View {
     var body: some View {
         DynamicHTMLWebView(html: html, height: $height)
             .frame(height: height)
-            .animation(.spring(response: 0.34, dampingFraction: 0.9), value: height)
             .accessibilityLabel(html.strippingHTML())
     }
 }
@@ -127,9 +123,7 @@ private struct DynamicHTMLWebView: UIViewRepresentable {
                 guard let value = result as? CGFloat else { return }
                 let nextHeight = max(48, ceil(value))
                 if abs(self.height - nextHeight) > 1 {
-                    withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
-                        self.height = nextHeight
-                    }
+                    self.height = nextHeight
                 }
             }
         }
