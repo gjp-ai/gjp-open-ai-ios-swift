@@ -15,6 +15,7 @@ struct AudiosScreen: View {
         NavigationStack {
             content
                 .navigationTitle(L10n.text("audios", app.language))
+                .navigationBarTitleDisplayMode(.inline)
                 .searchable(text: $viewModel.searchText, prompt: L10n.text("search", app.language))
                 .safeAreaInset(edge: .top) {
                     FilterBar(tags: app.tags("audio_tags"), selectedTag: $viewModel.selectedTag, sortOrder: $viewModel.sortOrder)

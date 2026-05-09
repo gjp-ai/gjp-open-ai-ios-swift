@@ -15,6 +15,7 @@ struct ImagesScreen: View {
         NavigationStack {
             content
                 .navigationTitle(L10n.text("images", app.language))
+                .navigationBarTitleDisplayMode(.inline)
                 .searchable(text: $viewModel.searchText, prompt: L10n.text("search", app.language))
                 .safeAreaInset(edge: .top) {
                     FilterBar(tags: app.tags("image_tags"), selectedTag: $viewModel.selectedTag, sortOrder: $viewModel.sortOrder)

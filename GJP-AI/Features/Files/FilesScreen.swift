@@ -14,6 +14,7 @@ struct FilesScreen: View {
         NavigationStack {
             content
                 .navigationTitle(L10n.text("files", app.language))
+                .navigationBarTitleDisplayMode(.inline)
                 .searchable(text: $viewModel.searchText, prompt: L10n.text("search", app.language))
                 .safeAreaInset(edge: .top) {
                     FilterBar(tags: app.tags("file_tags"), selectedTag: $viewModel.selectedTag, sortOrder: $viewModel.sortOrder)

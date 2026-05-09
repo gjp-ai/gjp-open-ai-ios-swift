@@ -14,6 +14,7 @@ struct VideosScreen: View {
         NavigationStack {
             content
                 .navigationTitle(L10n.text("videos", app.language))
+                .navigationBarTitleDisplayMode(.inline)
                 .searchable(text: $viewModel.searchText, prompt: L10n.text("search", app.language))
                 .safeAreaInset(edge: .top) {
                     FilterBar(tags: app.tags("video_tags"), selectedTag: $viewModel.selectedTag, sortOrder: $viewModel.sortOrder)

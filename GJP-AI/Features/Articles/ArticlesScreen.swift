@@ -16,6 +16,7 @@ struct ArticlesScreen: View {
         NavigationStack {
             content
                 .navigationTitle(L10n.text("articles", app.language))
+                .navigationBarTitleDisplayMode(.inline)
                 .searchable(text: $viewModel.searchText, prompt: L10n.text("search", app.language))
                 .safeAreaInset(edge: .top) {
                     FilterBar(tags: app.tags("article_tags"), selectedTag: $viewModel.selectedTag, sortOrder: $viewModel.sortOrder)
