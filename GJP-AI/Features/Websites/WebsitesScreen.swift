@@ -5,7 +5,7 @@ struct WebsitesScreen: View {
     @StateObject private var viewModel: OpenListViewModel<Website>
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 500) { page, size, language, search, tags in
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 100, cacheKey: "websites") { page, size, language, search, tags in
             try await api.websites(page: page, size: size, language: language, name: search, tags: tags)
         })
     }
@@ -15,7 +15,6 @@ struct WebsitesScreen: View {
             content
                 .navigationTitle(L10n.text("websites", app.language))
                 .searchable(text: $viewModel.searchText, prompt: L10n.text("search", app.language))
-                .toolbar { SettingsMenu() }
                 .safeAreaInset(edge: .top) {
                     FilterBar(tags: app.tags("website_tags"), selectedTag: $viewModel.selectedTag, sortOrder: $viewModel.sortOrder)
                         .background(.bar)
@@ -51,37 +50,6 @@ struct WebsitesScreen: View {
             .scrollContentBackground(.hidden)
             .background(Color(.systemGroupedBackground))
             .refreshable { await viewModel.refresh() }
-        }
-    }
-}
-
-private struct WebsiteRow: View {
-    let website: Website
-
-    var body: some View {
-        HStack(spacing: 14) {
-            RemoteImage(urlString: website.logoUrl, title: website.name, systemFallback: "globe")
-                .frame(width: 54, height: 54)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            VStack(alignment: .leading, spacing: 6) {
-                Text(website.name)
-                    .font(.headline)
-                if let description = website.description, !description.isEmpty {
-                    Text(description)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-                TagFlow(tags: website.tags)
-            }
-            Spacer()
-            if let urlString = website.url, let url = URL(string: urlString) {
-                Link(destination: url) {
-                    Image(systemName: "arrow.up.right.square")
-                        .font(.title3)
-                }
-                .accessibilityLabel(website.name)
-            }
         }
     }
 }

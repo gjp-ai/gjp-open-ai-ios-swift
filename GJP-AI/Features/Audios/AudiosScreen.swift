@@ -1,4 +1,3 @@
-import AVFoundation
 import SwiftUI
 
 struct AudiosScreen: View {
@@ -7,7 +6,7 @@ struct AudiosScreen: View {
     @State private var activeItem: MediaItem?
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 50) { page, size, language, search, tags in
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 50, cacheKey: "audios") { page, size, language, search, tags in
             try await api.audios(page: page, size: size, language: language, name: search, tags: tags)
         })
     }
@@ -17,7 +16,6 @@ struct AudiosScreen: View {
             content
                 .navigationTitle(L10n.text("audios", app.language))
                 .searchable(text: $viewModel.searchText, prompt: L10n.text("search", app.language))
-                .toolbar { SettingsMenu() }
                 .safeAreaInset(edge: .top) {
                     FilterBar(tags: app.tags("audio_tags"), selectedTag: $viewModel.selectedTag, sortOrder: $viewModel.sortOrder)
                         .background(.bar)
@@ -67,104 +65,5 @@ struct AudiosScreen: View {
             .background(Color(.systemGroupedBackground))
             .refreshable { await viewModel.refresh() }
         }
-    }
-}
-
-private struct AudioRow: View {
-    let item: MediaItem
-    let isActive: Bool
-
-    var body: some View {
-        HStack(spacing: 14) {
-            RemoteImage(urlString: item.coverImageUrl, title: item.displayTitle, systemFallback: "music.note")
-                .frame(width: 64, height: 64)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-            VStack(alignment: .leading, spacing: 5) {
-                Text(item.displayTitle)
-                    .font(.headline)
-                if let artist = item.artist, !artist.isEmpty {
-                    Text(artist)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                TagFlow(tags: item.tags)
-            }
-            Spacer()
-            Image(systemName: isActive ? "pause.circle.fill" : "play.circle.fill")
-                .font(.title2)
-                .foregroundStyle(.tint)
-        }
-    }
-}
-
-private struct AudioMiniPlayer: View {
-    @EnvironmentObject private var app: AppModel
-    let item: MediaItem
-    let close: () -> Void
-    @State private var player: AVPlayer?
-    @State private var isPlaying = false
-    @State private var showSubtitle = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if showSubtitle, let subtitle = item.subtitle, !subtitle.isEmpty {
-                Text(HTMLText(subtitle).attributed)
-                    .font(.footnote)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
-            }
-            HStack(spacing: 12) {
-                Button(action: toggle) {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                        .frame(width: 36, height: 36)
-                        .background(app.tint, in: Circle())
-                        .foregroundStyle(.white)
-                }
-                VStack(alignment: .leading) {
-                    Text(item.displayTitle)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(1)
-                    if let artist = item.artist {
-                        Text(artist)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-                Spacer()
-                if item.subtitle != nil {
-                    Button(L10n.text("subtitles", app.language)) {
-                        showSubtitle.toggle()
-                    }
-                    .font(.caption.weight(.semibold))
-                }
-                Button(action: close) {
-                    Image(systemName: "xmark.circle.fill")
-                }
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
-        }
-        .padding(.horizontal)
-        .task(id: item.id) {
-            if let urlString = item.url, let url = URL(string: urlString) {
-                player = AVPlayer(url: url)
-                player?.play()
-                isPlaying = true
-            }
-        }
-        .onDisappear {
-            player?.pause()
-        }
-    }
-
-    private func toggle() {
-        if isPlaying {
-            player?.pause()
-        } else {
-            player?.play()
-        }
-        isPlaying.toggle()
     }
 }

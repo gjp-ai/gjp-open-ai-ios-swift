@@ -16,11 +16,13 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
 
     private let pageSize: Int
     private let loadPage: (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>
+    private let cacheKey: String?
     private var currentLanguage: LanguageCode = .en
     private var rawItems: [Item] = []
 
-    init(pageSize: Int = 50, loadPage: @escaping (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>) {
+    init(pageSize: Int = 50, cacheKey: String? = nil, loadPage: @escaping (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>) {
         self.pageSize = pageSize
+        self.cacheKey = cacheKey
         self.loadPage = loadPage
     }
 
@@ -34,7 +36,16 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
 
     func load(language: LanguageCode) async {
         currentLanguage = language
-        state = .loading
+        
+        // Try loading from cache first
+        if let key = cacheKey, let cached: [Item] = CacheManager.load(forKey: "\(key)_\(language.rawValue)") {
+            rawItems = cached
+            updateFilteredItems()
+            state = items.isEmpty ? .loading : .content(items)
+        } else {
+            state = .loading
+        }
+        
         await fetch(reset: true)
     }
 
@@ -60,6 +71,10 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
             
             if reset {
                 rawItems = languageItems
+                // Save to cache on first page load
+                if let key = cacheKey, trimmedSearch == nil, selectedTag == nil {
+                    CacheManager.save(rawItems, forKey: "\(key)_\(currentLanguage.rawValue)")
+                }
             } else {
                 rawItems += languageItems
             }
@@ -72,7 +87,13 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
                 state = .content(items)
             }
         } catch {
-            state = .error(error.localizedDescription)
+            // If we already have items (from cache or previous fetch), don't show error state
+            if items.isEmpty {
+                state = .error(error.localizedDescription)
+            } else {
+                // Optionally show a subtle toast or just ignore if it's a background update failure
+                print("Fetch failed, using cache/existing data: \(error)")
+            }
         }
     }
 
@@ -102,24 +123,3 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
     }
 }
 
-struct HTMLText: Identifiable, Equatable {
-    let id = UUID()
-    let attributed: AttributedString
-
-    init(_ html: String) {
-        if let data = html.data(using: .utf8),
-           let ns = try? NSAttributedString(
-                data: data,
-                options: [
-                    .documentType: NSAttributedString.DocumentType.html,
-                    .characterEncoding: String.Encoding.utf8.rawValue
-                ],
-                documentAttributes: nil
-           ),
-           let converted = try? AttributedString(ns, including: \.uiKit) {
-            attributed = converted
-        } else {
-            attributed = AttributedString(html.strippingHTML())
-        }
-    }
-}

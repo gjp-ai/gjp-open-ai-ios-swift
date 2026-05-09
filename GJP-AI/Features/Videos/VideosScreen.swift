@@ -5,7 +5,7 @@ struct VideosScreen: View {
     @StateObject private var viewModel: OpenListViewModel<MediaItem>
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 50) { page, size, language, search, tags in
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 50, cacheKey: "videos") { page, size, language, search, tags in
             try await api.videos(page: page, size: size, language: language, name: search, tags: tags)
         })
     }
@@ -15,7 +15,6 @@ struct VideosScreen: View {
             content
                 .navigationTitle(L10n.text("videos", app.language))
                 .searchable(text: $viewModel.searchText, prompt: L10n.text("search", app.language))
-                .toolbar { SettingsMenu() }
                 .safeAreaInset(edge: .top) {
                     FilterBar(tags: app.tags("video_tags"), selectedTag: $viewModel.selectedTag, sortOrder: $viewModel.sortOrder)
                         .background(.bar)
@@ -51,28 +50,6 @@ struct VideosScreen: View {
             .scrollContentBackground(.hidden)
             .background(Color(.systemGroupedBackground))
             .refreshable { await viewModel.refresh() }
-        }
-    }
-}
-
-private struct VideoCard: View {
-    let item: MediaItem
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VideoPlayerView(item: item)
-            Text(item.displayTitle)
-                .font(.headline)
-            if let description = item.description, !description.isEmpty {
-                Text(description.strippingHTML())
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            HStack {
-                TagFlow(tags: item.tags)
-                Spacer()
-                ExternalLinkButton(titleKey: "download", urlString: item.url, systemImage: "arrow.down.circle")
-            }
         }
     }
 }
