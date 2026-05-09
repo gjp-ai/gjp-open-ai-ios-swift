@@ -4,42 +4,63 @@ struct ArticleRow: View {
     let article: ArticleSummary
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            RemoteImage(urlString: article.coverImageUrl, title: article.title, systemFallback: "newspaper")
-                .frame(width: 96, height: 74)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color(.separator).opacity(0.2), lineWidth: 0.5)
-                }
-            VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 12) {
+            if article.coverImageUrl != nil {
+                RemoteImage(urlString: article.coverImageUrl, title: article.title, systemFallback: "newspaper")
+                    .frame(maxWidth: .infinity)
+                    .aspectRatio(16 / 9, contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(Color(.separator).opacity(0.18), lineWidth: 0.5)
+                    }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                ArticleMetaLine(source: article.sourceName, updatedAt: article.updatedAt)
+
                 Text(article.title)
-                    .font(.headline)
-                    .lineLimit(2)
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+
                 if let summary = article.summary, !summary.isEmpty {
                     Text(summary)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(3)
+                        .lineSpacing(2)
                 }
-                HStack(spacing: 6) {
-                    if let source = article.sourceName, !source.isEmpty {
-                        HStack(spacing: 4) {
-                            Image(systemName: "building.2")
-                                .font(.caption2)
-                            Text(source)
-                                .font(.caption)
-                        }
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    }
-                    Spacer()
-                    Text(article.updatedAt.prefix(10))
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+
                 TagFlow(tags: article.tags)
             }
         }
+    }
+}
+
+private struct ArticleMetaLine: View {
+    let source: String?
+    let updatedAt: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if let source, !source.isEmpty {
+                Label(source, systemImage: "building.2")
+                    .lineLimit(1)
+            }
+
+            if source?.isEmpty == false {
+                Circle()
+                    .fill(Color.secondary.opacity(0.35))
+                    .frame(width: 4, height: 4)
+            }
+
+            Label(String(updatedAt.prefix(10)), systemImage: "calendar")
+                .lineLimit(1)
+        }
+        .font(.caption.weight(.medium))
+        .foregroundStyle(.secondary)
+        .labelStyle(.titleAndIcon)
     }
 }
