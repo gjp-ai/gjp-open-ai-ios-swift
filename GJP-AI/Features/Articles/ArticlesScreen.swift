@@ -39,14 +39,21 @@ struct ArticlesScreen: View {
         case .content:
             List(viewModel.items) { article in
                 NavigationLink(value: article.id) {
-                    ArticleRow(article: article)
+                    OpenCard {
+                        ArticleRow(article: article)
+                    }
                 }
+                .openListCardRow()
                 if article.id == viewModel.items.last?.id, viewModel.canLoadMore {
                     LoadMoreButton(isLoading: viewModel.isLoadingMore) {
                         Task { await viewModel.loadMore() }
                     }
+                    .openListCardRow()
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
             .navigationDestination(for: String.self) { id in
                 ArticleDetailScreen(articleID: id, api: api)
             }
@@ -82,7 +89,6 @@ private struct ArticleRow: View {
                 }
             }
         }
-        .padding(.vertical, 6)
     }
 }
 

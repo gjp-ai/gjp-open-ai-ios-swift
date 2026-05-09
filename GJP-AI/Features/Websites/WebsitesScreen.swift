@@ -36,14 +36,20 @@ struct WebsitesScreen: View {
             ContentUnavailableView(L10n.text("failed", app.language), systemImage: "exclamationmark.triangle", description: Text(message))
         case .content:
             List(viewModel.items) { website in
-                WebsiteRow(website: website)
+                OpenCard {
+                    WebsiteRow(website: website)
+                }
+                .openListCardRow()
                 if website.id == viewModel.items.last?.id, viewModel.canLoadMore {
                     LoadMoreButton(isLoading: viewModel.isLoadingMore) {
                         Task { await viewModel.loadMore() }
                     }
+                    .openListCardRow()
                 }
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
             .refreshable { await viewModel.refresh() }
         }
     }
@@ -77,6 +83,5 @@ private struct WebsiteRow: View {
                 .accessibilityLabel(website.name)
             }
         }
-        .padding(.vertical, 6)
     }
 }

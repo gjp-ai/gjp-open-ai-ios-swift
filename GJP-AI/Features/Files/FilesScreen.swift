@@ -36,13 +36,20 @@ struct FilesScreen: View {
             ContentUnavailableView(L10n.text("failed", app.language), systemImage: "exclamationmark.triangle", description: Text(message))
         case .content:
             List(viewModel.items) { item in
-                FileRow(item: item)
+                OpenCard {
+                    FileRow(item: item)
+                }
+                .openListCardRow()
                 if item.id == viewModel.items.last?.id, viewModel.canLoadMore {
                     LoadMoreButton(isLoading: viewModel.isLoadingMore) {
                         Task { await viewModel.loadMore() }
                     }
+                    .openListCardRow()
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
             .refreshable { await viewModel.refresh() }
         }
     }
@@ -79,6 +86,5 @@ private struct FileRow: View {
                 .accessibilityLabel("\(L10n.text("download", app.language)) \(item.name)")
             }
         }
-        .padding(.vertical, 6)
     }
 }

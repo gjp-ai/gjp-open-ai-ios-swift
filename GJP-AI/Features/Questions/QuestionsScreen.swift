@@ -36,13 +36,20 @@ struct QuestionsScreen: View {
             ContentUnavailableView(L10n.text("failed", app.language), systemImage: "exclamationmark.triangle", description: Text(message))
         case .content:
             List(viewModel.items) { question in
-                QuestionRow(question: question)
+                OpenCard {
+                    QuestionRow(question: question)
+                }
+                .openListCardRow()
                 if question.id == viewModel.items.last?.id, viewModel.canLoadMore {
                     LoadMoreButton(isLoading: viewModel.isLoadingMore) {
                         Task { await viewModel.loadMore() }
                     }
+                    .openListCardRow()
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
             .refreshable { await viewModel.refresh() }
         }
     }
@@ -70,7 +77,6 @@ private struct QuestionRow: View {
                     .font(.headline)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.vertical, 6)
         }
     }
 }

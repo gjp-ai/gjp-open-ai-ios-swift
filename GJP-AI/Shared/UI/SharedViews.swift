@@ -119,13 +119,14 @@ struct TagFlow: View {
     var body: some View {
         let list = tags?.tagList() ?? []
         if !list.isEmpty {
-            HStack {
+            HStack(spacing: 6) {
                 ForEach(list.prefix(4), id: \.self) { tag in
                     Text(tag)
                         .font(.caption)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(.thinMaterial, in: Capsule())
+                        .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+                        .lineLimit(1)
                 }
             }
         }
@@ -144,6 +145,30 @@ struct ExternalLinkButton: View {
                 Label(L10n.text(titleKey, app.language), systemImage: systemImage)
             }
         }
+    }
+}
+
+struct OpenCard<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .padding(14)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color(.separator).opacity(0.35), lineWidth: 0.5)
+            }
+            .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
+    }
+}
+
+extension View {
+    func openListCardRow() -> some View {
+        self
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 7, leading: 16, bottom: 7, trailing: 16))
     }
 }
 

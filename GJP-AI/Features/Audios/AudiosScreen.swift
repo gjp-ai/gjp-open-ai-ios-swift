@@ -49,15 +49,22 @@ struct AudiosScreen: View {
                 Button {
                     activeItem = item
                 } label: {
-                    AudioRow(item: item, isActive: activeItem?.id == item.id)
+                    OpenCard {
+                        AudioRow(item: item, isActive: activeItem?.id == item.id)
+                    }
                 }
                 .buttonStyle(.plain)
+                .openListCardRow()
                 if item.id == viewModel.items.last?.id, viewModel.canLoadMore {
                     LoadMoreButton(isLoading: viewModel.isLoadingMore) {
                         Task { await viewModel.loadMore() }
                     }
+                    .openListCardRow()
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
             .refreshable { await viewModel.refresh() }
         }
     }
@@ -87,7 +94,6 @@ private struct AudioRow: View {
                 .font(.title2)
                 .foregroundStyle(.tint)
         }
-        .padding(.vertical, 6)
     }
 }
 

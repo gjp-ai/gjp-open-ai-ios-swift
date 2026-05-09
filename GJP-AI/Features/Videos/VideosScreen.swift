@@ -36,14 +36,20 @@ struct VideosScreen: View {
             ContentUnavailableView(L10n.text("failed", app.language), systemImage: "exclamationmark.triangle", description: Text(message))
         case .content:
             List(viewModel.items) { item in
-                VideoCard(item: item)
+                OpenCard {
+                    VideoCard(item: item)
+                }
+                .openListCardRow()
                 if item.id == viewModel.items.last?.id, viewModel.canLoadMore {
                     LoadMoreButton(isLoading: viewModel.isLoadingMore) {
                         Task { await viewModel.loadMore() }
                     }
+                    .openListCardRow()
                 }
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
             .refreshable { await viewModel.refresh() }
         }
     }
@@ -68,6 +74,5 @@ private struct VideoCard: View {
                 ExternalLinkButton(titleKey: "download", urlString: item.url, systemImage: "arrow.down.circle")
             }
         }
-        .padding(.vertical, 8)
     }
 }

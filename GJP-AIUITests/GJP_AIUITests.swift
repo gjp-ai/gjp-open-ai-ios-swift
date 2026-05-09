@@ -31,10 +31,14 @@ final class GJP_AIUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["Q&A"].exists)
         XCTAssertTrue(app.tabBars.buttons["Articles"].exists)
         XCTAssertTrue(app.tabBars.buttons["Images"].exists)
-        XCTAssertTrue(app.tabBars.buttons["Videos"].exists)
+        XCTAssertTrue(app.tabBars.buttons["More"].exists)
 
         app.tabBars.buttons["Articles"].tap()
         XCTAssertTrue(app.navigationBars["Articles"].waitForExistence(timeout: 2))
+
+        app.tabBars.buttons["More"].tap()
+        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Videos"].exists)
     }
 
     @MainActor
