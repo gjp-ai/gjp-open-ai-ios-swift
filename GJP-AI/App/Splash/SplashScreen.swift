@@ -37,8 +37,7 @@ struct SplashScreen: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 140, height: 140)
                     .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                    .shadow(color: app.tint.opacity(0.2), radius: pulsing ? 30 : 10, y: 4)
-                    .scaleEffect(pulsing ? 1.08 : 1.0)
+                    .scaleEffect(pulsing ? 1.5 : 1.0)
                     .opacity(logoOpacity)
                     .onAppear {
                         withAnimation(.easeOut(duration: 0.6)) {

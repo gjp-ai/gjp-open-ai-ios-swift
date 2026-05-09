@@ -3,31 +3,26 @@ import SwiftUI
 struct ImageTile: View {
     let item: MediaItem
 
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            RemoteImage(urlString: item.imageURL, title: item.altText ?? item.displayTitle, systemFallback: "photo")
-                .frame(height: 160)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+    private var displayUrl: String? {
+        [item.url, item.originalUrl, item.coverImageUrl, item.thumbnailUrl]
+            .compactMap { $0 }
+            .first { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
 
-            // Smooth gradient overlay for text readability
-            LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0.4),
-                    .init(color: .black.opacity(0.6), location: 1.0)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            RemoteImage(urlString: displayUrl, title: item.altText ?? item.displayTitle, systemFallback: "photo", contentMode: .fit)
+                .frame(maxWidth: .infinity, minHeight: 200)
+                .clipped()
 
             Text(item.displayTitle)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white)
+                .font(.headline.weight(.medium))
+                .foregroundStyle(.primary)
                 .lineLimit(2)
-                .padding(10)
+                .padding(.horizontal, 16)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+        .padding(.bottom, 12)
+        .background(Color(.secondarySystemGroupedBackground))
     }
 }

@@ -71,6 +71,12 @@ struct WebsitesScreen: View {
             }
             .background(Color(.systemGroupedBackground))
             .refreshable { await viewModel.refresh() }
+            .overlay(alignment: .top) {
+                if viewModel.isBackgroundRefreshing {
+                    BackgroundRefreshBanner()
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.isBackgroundRefreshing)
+                }
+            }
         }
     }
 }

@@ -21,11 +21,9 @@ struct ArticleDetailScreen: View {
                     .frame(minHeight: 300)
             case let .content(article):
                 VStack(alignment: .leading, spacing: 0) {
-                    if article.coverImageUrl != nil {
-                        RemoteImage(urlString: article.coverImageUrl, title: article.title, systemFallback: "newspaper")
+                    if let coverUrl = article.coverImageUrl, !coverUrl.isEmpty {
+                        RemoteImage(urlString: coverUrl, title: article.title, systemFallback: "newspaper", contentMode: .fit)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 260)
-                            .clipped()
                             .overlay(alignment: .bottomLeading) {
                                 LinearGradient(
                                     stops: [
@@ -63,15 +61,7 @@ struct ArticleDetailScreen: View {
                             .foregroundStyle(.primary)
                             .fixedSize(horizontal: false, vertical: true)
 
-                        if let summary = article.summary, !summary.isEmpty {
-                            Text(summary)
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                                .lineSpacing(3)
-                                .padding(14)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        }
+
 
                         HStack(spacing: 12) {
                             ExternalLinkButton(titleKey: "original", urlString: article.originalUrl, systemImage: "safari")

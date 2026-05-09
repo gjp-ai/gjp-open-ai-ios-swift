@@ -1,5 +1,6 @@
 import AVKit
 import SwiftUI
+import WebKit
 
 struct FilterBar: View {
     @EnvironmentObject private var app: AppModel
@@ -107,39 +108,158 @@ struct RemoteImage: View {
     let urlString: String?
     let title: String
     let systemFallback: String
+    var contentMode: ContentMode = .fill
+
+    private var parsedURL: URL? {
+        guard let raw = urlString else { return nil }
+        return ImageCache.parsedURL(from: raw)
+    }
 
     var body: some View {
-        if let urlString, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case let .success(image):
-                    image.resizable().scaledToFill()
-                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                case .failure:
-                    fallback
-                case .empty:
-                    ZStack {
-                        fallback.opacity(0.3)
-                        ProgressView()
-                            .tint(.secondary)
-                    }
-                @unknown default:
-                    fallback
+        if let url = parsedURL {
+            Group {
+                if url.pathExtension.lowercased() == "svg" {
+                    SVGImage(url: url, contentMode: contentMode)
+                } else {
+                    CachedAsyncImage(url: url, contentMode: contentMode, systemFallback: systemFallback)
+                        // KEY FIX: bind view identity to the URL so LazyVStack
+                        // recycles don't keep a stale loading phase for the new URL.
+                        .id(url)
                 }
             }
             .accessibilityLabel(title)
         } else {
-            fallback
+            fallbackView(systemFallback)
+        }
+    }
+}
+
+/// A cached image loader that bypasses `Cache-Control: no-store` server headers.
+/// `AsyncImage` relies on `URLSession` which respects those headers and never
+/// caches responses — causing blank images whenever a cell is reused or
+/// the view re-renders. This view uses `ImageCache` (a custom two-level
+/// memory + disk cache with `storagePolicy: .allowed`) to ensure images
+/// are always served from cache after the first successful load.
+private struct CachedAsyncImage: View {
+    let url: URL
+    let contentMode: ContentMode
+    let systemFallback: String
+
+    enum LoadPhase {
+        case loading
+        case success(UIImage)
+        case failure
+    }
+
+    @State private var phase: LoadPhase = .loading
+    @State private var loadedURL: URL? = nil
+
+    var body: some View {
+        content
+            .task(id: url) {
+                // Reset to loading only when the URL actually changes
+                if loadedURL != url {
+                    phase = .loading
+                    loadedURL = url
+                }
+                await load(url)
+            }
+    }
+
+    @ViewBuilder private var content: some View {
+        switch phase {
+        case .loading:
+            ZStack {
+                fallbackView(systemFallback).opacity(0.3)
+                ProgressView().tint(.secondary)
+            }
+        case let .success(image):
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: contentMode)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+        case .failure:
+            fallbackView(systemFallback)
         }
     }
 
-    private var fallback: some View {
-        ZStack {
-            Rectangle().fill(.quaternary)
-            Image(systemName: systemFallback)
-                .font(.title2)
-                .foregroundStyle(.secondary)
+    private func load(_ url: URL) async {
+        do {
+            let image = try await ImageCache.shared.image(for: url)
+            withAnimation(.easeIn(duration: 0.2)) {
+                phase = .success(image)
+            }
+        } catch {
+            phase = .failure
         }
+    }
+}
+
+private func fallbackView(_ systemName: String) -> some View {
+    ZStack {
+        Rectangle().fill(.quaternary)
+            .frame(minHeight: 120)
+        Image(systemName: systemName)
+            .font(.title2)
+            .foregroundStyle(.secondary)
+    }
+}
+
+private struct SVGImage: View {
+    let url: URL
+    let contentMode: ContentMode
+    
+    var body: some View {
+        SVGWebView(url: url, contentMode: contentMode)
+            .clipped()
+    }
+}
+
+private struct SVGWebView: UIViewRepresentable {
+    let url: URL
+    let contentMode: ContentMode
+
+    final class Coordinator {
+        var loadedURL: URL?
+        var loadedContentMode: ContentMode?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.backgroundColor = .clear
+        webView.isOpaque = false
+        webView.scrollView.isScrollEnabled = false
+        webView.isUserInteractionEnabled = false
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        // Avoid reloading on every SwiftUI update pass — only reload when
+        // the URL or content-mode actually changes, preventing SVG flicker.
+        guard context.coordinator.loadedURL != url ||
+              context.coordinator.loadedContentMode != contentMode else { return }
+        context.coordinator.loadedURL = url
+        context.coordinator.loadedContentMode = contentMode
+
+        let objectFit = contentMode == .fill ? "cover" : "contain"
+        let html = """
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <style>
+                body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+                img { width: 100%; height: 100%; object-fit: \(objectFit); }
+            </style>
+        </head>
+        <body>
+            <img src="\(url.absoluteString)">
+        </body>
+        </html>
+        """
+        webView.loadHTMLString(html, baseURL: nil)
     }
 }
 
@@ -249,5 +369,28 @@ struct VideoPlayerView: View {
         } else {
             ContentUnavailableView(item.displayTitle, systemImage: "video.slash")
         }
+    }
+}
+
+// MARK: - BackgroundRefreshBanner
+
+/// Subtle pill shown when a ViewModel is silently refreshing cached data in background.
+/// Appears at the top of a scroll view and auto-hides when refresh completes.
+struct BackgroundRefreshBanner: View {
+    var body: some View {
+        HStack(spacing: 6) {
+            ProgressView()
+                .scaleEffect(0.75)
+                .tint(.secondary)
+            Text("Updating…")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+        .background(.bar, in: Capsule())
+        .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
+        .padding(.top, 6)
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
 }

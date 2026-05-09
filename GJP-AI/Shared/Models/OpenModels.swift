@@ -64,6 +64,13 @@ protocol OpenListItem: Identifiable, Codable, Equatable {
     var updatedAt: String { get }
     var searchableText: String { get }
     var sortTitle: String { get }
+    /// URLs of images that should be prefetched into ImageCache when this
+    /// item is restored from disk cache, so they are ready on first render.
+    var imageURLsForPrefetch: [String] { get }
+}
+
+extension OpenListItem {
+    var imageURLsForPrefetch: [String] { [] }
 }
 
 struct Website: OpenListItem {
@@ -79,6 +86,7 @@ struct Website: OpenListItem {
 
     var searchableText: String { [name, description, tags].compactMap { $0 }.joined(separator: " ") }
     var sortTitle: String { name }
+    var imageURLsForPrefetch: [String] { [logoUrl].compactMap { $0 } }
 }
 
 struct Question: OpenListItem {
@@ -109,6 +117,7 @@ struct ArticleSummary: OpenListItem {
 
     var searchableText: String { [title, summary, tags].compactMap { $0 }.joined(separator: " ") }
     var sortTitle: String { title }
+    var imageURLsForPrefetch: [String] { [coverImageUrl].compactMap { $0 } }
 }
 
 struct ArticleDetail: Codable, Equatable, Identifiable {
@@ -154,6 +163,7 @@ struct MediaItem: OpenListItem {
     var imageURL: String? { thumbnailUrl ?? coverImageUrl ?? url }
     var searchableText: String { [title, name, description, artist, tags].compactMap { $0 }.joined(separator: " ") }
     var sortTitle: String { displayTitle }
+    var imageURLsForPrefetch: [String] { [thumbnailUrl ?? url].compactMap { $0 } }
 }
 
 struct FileItem: OpenListItem {

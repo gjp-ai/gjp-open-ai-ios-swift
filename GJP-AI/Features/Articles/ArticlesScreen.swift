@@ -37,27 +37,36 @@ struct ArticlesScreen: View {
         case let .error(message):
             ContentUnavailableView(L10n.text("failed", app.language), systemImage: "exclamationmark.triangle", description: Text(message))
         case .content:
-            List(viewModel.items) { article in
-                NavigationLink(value: article.id) {
-                    OpenCard {
-                        ArticleRow(article: article)
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    ForEach(viewModel.items) { article in
+                        NavigationLink(value: article.id) {
+                            ArticleRow(article: article)
+                        }
+                        .buttonStyle(.plain)
+                        
+                        if article.id == viewModel.items.last?.id, viewModel.canLoadMore {
+                            LoadMoreButton(isLoading: viewModel.isLoadingMore) {
+                                Task { await viewModel.loadMore() }
+                            }
+                            .padding(.horizontal, 16)
+                        }
                     }
                 }
-                .openListCardRow()
-                if article.id == viewModel.items.last?.id, viewModel.canLoadMore {
-                    LoadMoreButton(isLoading: viewModel.isLoadingMore) {
-                        Task { await viewModel.loadMore() }
-                    }
-                    .openListCardRow()
-                }
+                .padding(.bottom, 24)
             }
-            .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(Color(.systemGroupedBackground))
             .navigationDestination(for: String.self) { id in
                 ArticleDetailScreen(articleID: id, api: api)
             }
             .refreshable { await viewModel.refresh() }
+            .overlay(alignment: .top) {
+                if viewModel.isBackgroundRefreshing {
+                    BackgroundRefreshBanner()
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.isBackgroundRefreshing)
+                }
+            }
         }
     }
 }

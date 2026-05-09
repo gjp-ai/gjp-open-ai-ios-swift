@@ -9,6 +9,7 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
     @Published private(set) var totalPages = 1
     @Published private(set) var currentPage = 0
     @Published private(set) var isLoadingMore = false
+    @Published private(set) var isBackgroundRefreshing = false
     @Published private(set) var items: [Item] = []
     @Published var searchText = "" { didSet { updateFilteredItems() } }
     @Published var selectedTag: String? { didSet { updateFilteredItems() } }
@@ -36,17 +37,27 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
 
     func load(language: LanguageCode) async {
         currentLanguage = language
-        
-        // Try loading from cache first
+
+        // Restore from disk cache immediately so the UI shows content at once
+        var hasCachedContent = false
         if let key = cacheKey, let cached: [Item] = CacheManager.load(forKey: "\(key)_\(language.rawValue)") {
             rawItems = cached
             updateFilteredItems()
             state = items.isEmpty ? .loading : .content(items)
+            hasCachedContent = !items.isEmpty
+
+            // Warm ImageCache in background for all cached items so images
+            // are ready before the user scrolls (avoids loading spinners on 2nd visit)
+            let urls = cached.flatMap { $0.imageURLsForPrefetch }
+            ImageCache.shared.prefetch(urlStrings: urls)
         } else {
             state = .loading
         }
-        
+
+        // Fetch fresh data from API — silently if we already showed cache
+        isBackgroundRefreshing = hasCachedContent
         await fetch(reset: true)
+        isBackgroundRefreshing = false
     }
 
     func refresh() async {

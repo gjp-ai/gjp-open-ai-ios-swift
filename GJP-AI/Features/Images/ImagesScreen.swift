@@ -26,7 +26,7 @@ struct ImagesScreen: View {
         .onChange(of: viewModel.searchText) { _, _ in Task { await viewModel.refresh() } }
         .onChange(of: viewModel.selectedTag) { _, _ in Task { await viewModel.refresh() } }
         .sheet(item: $selectedImage) { item in
-            ImagePreviewSheet(item: item)
+            ImagePreviewSheet(item: item, items: viewModel.items)
         }
     }
 
@@ -40,7 +40,7 @@ struct ImagesScreen: View {
             ContentUnavailableView(L10n.text("failed", app.language), systemImage: "exclamationmark.triangle", description: Text(message))
         case .content:
             ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
+                LazyVStack(spacing: 24) {
                     ForEach(viewModel.items) { item in
                         Button {
                             selectedImage = item
@@ -50,7 +50,6 @@ struct ImagesScreen: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding()
                 if viewModel.canLoadMore {
                     LoadMoreButton(isLoading: viewModel.isLoadingMore) {
                         Task { await viewModel.loadMore() }
@@ -59,6 +58,12 @@ struct ImagesScreen: View {
                 }
             }
             .refreshable { await viewModel.refresh() }
+            .overlay(alignment: .top) {
+                if viewModel.isBackgroundRefreshing {
+                    BackgroundRefreshBanner()
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.isBackgroundRefreshing)
+                }
+            }
         }
     }
 }

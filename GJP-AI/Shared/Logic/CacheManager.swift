@@ -7,13 +7,18 @@ enum CacheManager {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?.appendingPathComponent(folderName)
     }
 
-    static func save<T: Encodable>(_ items: [T], forKey key: String) {
-        guard let directory = getCacheDirectory() else { return }
-        
+    private static func ensureDirectory() -> URL? {
+        guard let directory = getCacheDirectory() else { return nil }
         if !FileManager.default.fileExists(atPath: directory.path) {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         }
-        
+        return directory
+    }
+
+    // MARK: - Array cache (used by OpenListViewModel)
+
+    static func save<T: Encodable>(_ items: [T], forKey key: String) {
+        guard let directory = ensureDirectory() else { return }
         let fileURL = directory.appendingPathComponent("\(key).json")
         do {
             let data = try JSONEncoder().encode(items)
@@ -26,14 +31,38 @@ enum CacheManager {
     static func load<T: Decodable>(forKey key: String) -> [T]? {
         guard let directory = getCacheDirectory() else { return nil }
         let fileURL = directory.appendingPathComponent("\(key).json")
-        
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
-        
         do {
             let data = try Data(contentsOf: fileURL)
             return try JSONDecoder().decode([T].self, from: data)
         } catch {
             print("Cache load error for \(key): \(error)")
+            return nil
+        }
+    }
+
+    // MARK: - Single-item cache (used for ArticleDetail)
+
+    static func saveItem<T: Encodable>(_ item: T, forKey key: String) {
+        guard let directory = ensureDirectory() else { return }
+        let fileURL = directory.appendingPathComponent("\(key).json")
+        do {
+            let data = try JSONEncoder().encode(item)
+            try data.write(to: fileURL)
+        } catch {
+            print("Cache saveItem error for \(key): \(error)")
+        }
+    }
+
+    static func loadItem<T: Decodable>(forKey key: String) -> T? {
+        guard let directory = getCacheDirectory() else { return nil }
+        let fileURL = directory.appendingPathComponent("\(key).json")
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
+        do {
+            let data = try Data(contentsOf: fileURL)
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            print("Cache loadItem error for \(key): \(error)")
             return nil
         }
     }
