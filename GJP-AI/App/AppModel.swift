@@ -64,7 +64,13 @@ final class AppModel: ObservableObject {
                 defaults.set(String(data: encoded, encoding: .utf8) ?? "", forKey: "gjp.appSettings.cache")
             }
         } catch {
-            settingsError = error.localizedDescription
+            // Only set error if we don't have any settings at all (neither fetched nor cached)
+            if settings.isEmpty {
+                settingsError = error.localizedDescription
+            } else {
+                // If we have cache, we don't treat the refresh failure as a fatal error for the splash
+                settingsError = nil
+            }
         }
     }
 
@@ -143,6 +149,7 @@ enum L10n {
         "light": [.en: "Light", .zh: "浅色"],
         "dark": [.en: "Dark", .zh: "深色"],
         "done": [.en: "Done", .zh: "完成"],
-        "loadMore": [.en: "Load more", .zh: "加载更多"]
+        "loadMore": [.en: "Load more", .zh: "加载更多"],
+        "brandName": [.en: "GJP AI", .zh: "GJP AI"]
     ]
 }

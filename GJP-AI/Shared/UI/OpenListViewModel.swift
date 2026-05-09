@@ -9,24 +9,23 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
     @Published private(set) var totalPages = 1
     @Published private(set) var currentPage = 0
     @Published private(set) var isLoadingMore = false
-    @Published var searchText = ""
-    @Published var selectedTag: String?
-    @Published var sortOrder: SortOrder = .displayOrder
+    @Published private(set) var items: [Item] = []
+    @Published var searchText = "" { didSet { updateFilteredItems() } }
+    @Published var selectedTag: String? { didSet { updateFilteredItems() } }
+    @Published var sortOrder: SortOrder = .displayOrder { didSet { updateFilteredItems() } }
 
     private let pageSize: Int
     private let loadPage: (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>
     private var currentLanguage: LanguageCode = .en
+    private var rawItems: [Item] = []
 
     init(pageSize: Int = 50, loadPage: @escaping (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>) {
         self.pageSize = pageSize
         self.loadPage = loadPage
     }
 
-    var items: [Item] {
-        if case let .content(items) = state {
-            return filtered(items)
-        }
-        return []
+    private func updateFilteredItems() {
+        items = filtered(rawItems)
     }
 
     var canLoadMore: Bool {
@@ -58,12 +57,19 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
             totalPages = max(page.totalPages, 1)
             currentPage = page.page
             let languageItems = page.content.filter { $0.lang == currentLanguage }
+            
             if reset {
-                state = languageItems.isEmpty ? .empty : .content(languageItems)
-            } else if case let .content(existing) = state {
-                state = .content(existing + languageItems)
+                rawItems = languageItems
             } else {
-                state = languageItems.isEmpty ? .empty : .content(languageItems)
+                rawItems += languageItems
+            }
+            
+            updateFilteredItems()
+            
+            if items.isEmpty {
+                state = .empty
+            } else {
+                state = .content(items)
             }
         } catch {
             state = .error(error.localizedDescription)

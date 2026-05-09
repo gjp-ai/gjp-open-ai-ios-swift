@@ -2,25 +2,36 @@ import SwiftUI
 
 struct RootView: View {
     @StateObject private var app = AppModel()
+    @State private var showingSplash = true
 
     var body: some View {
-        TabView {
-            WebsitesScreen()
-                .tabItem { Label(L10n.text("websites", app.language), systemImage: "globe") }
-            QuestionsScreen()
-                .tabItem { Label(L10n.text("questions", app.language), systemImage: "questionmark.circle") }
-            ArticlesScreen()
-                .tabItem { Label(L10n.text("articles", app.language), systemImage: "newspaper") }
-            ImagesScreen()
-                .tabItem { Label(L10n.text("images", app.language), systemImage: "photo.on.rectangle") }
-            MoreScreen()
-                .tabItem { Label(L10n.text("more", app.language), systemImage: "ellipsis") }
-        }
-        .environmentObject(app)
-        .tint(app.tint)
-        .preferredColorScheme(app.colorScheme)
-        .task {
-            await app.refreshSettings()
+        ZStack {
+            if showingSplash {
+                SplashScreen(app: app) {
+                    withAnimation(.easeOut(duration: 0.5)) {
+                        showingSplash = false
+                    }
+                }
+                .environmentObject(app)
+                .transition(.opacity)
+            } else {
+                TabView {
+                    WebsitesScreen()
+                        .tabItem { Label(L10n.text("websites", app.language), systemImage: "globe") }
+                    QuestionsScreen()
+                        .tabItem { Label(L10n.text("questions", app.language), systemImage: "questionmark.circle") }
+                    ArticlesScreen()
+                        .tabItem { Label(L10n.text("articles", app.language), systemImage: "newspaper") }
+                    ImagesScreen()
+                        .tabItem { Label(L10n.text("images", app.language), systemImage: "photo.on.rectangle") }
+                    MoreScreen()
+                        .tabItem { Label(L10n.text("more", app.language), systemImage: "ellipsis") }
+                }
+                .environmentObject(app)
+                .tint(app.tint)
+                .preferredColorScheme(app.colorScheme)
+                .transition(.opacity)
+            }
         }
     }
 }
