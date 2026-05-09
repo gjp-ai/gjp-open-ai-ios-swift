@@ -40,7 +40,7 @@ struct ArticlesScreen: View {
             ScrollView {
                 LazyVStack(spacing: 16) {
                     ForEach(viewModel.items) { article in
-                        NavigationLink(value: article.id) {
+                        NavigationLink(value: article) {
                             ArticleRow(article: article)
                         }
                         .buttonStyle(.plain)
@@ -57,8 +57,8 @@ struct ArticlesScreen: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color(.systemGroupedBackground))
-            .navigationDestination(for: String.self) { id in
-                ArticleDetailScreen(articleID: id, api: api)
+            .navigationDestination(for: ArticleSummary.self) { article in
+                ArticleDetailScreen(article: article)
             }
             .refreshable { await viewModel.refresh() }
             .overlay(alignment: .top) {

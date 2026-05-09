@@ -56,7 +56,7 @@ struct AppSetting: Codable, Identifiable, Equatable {
     let lang: LanguageCode
 }
 
-protocol OpenListItem: Identifiable, Codable, Equatable {
+protocol OpenListItem: Identifiable, Codable, Equatable, Hashable {
     var id: String { get }
     var lang: LanguageCode { get }
     var tags: String? { get }
@@ -114,30 +114,11 @@ struct ArticleSummary: OpenListItem {
     let lang: LanguageCode
     let displayOrder: Int
     let updatedAt: String
+    let content: String?
 
     var searchableText: String { [title, summary, tags].compactMap { $0 }.joined(separator: " ") }
     var sortTitle: String { title }
     var imageURLsForPrefetch: [String] { [coverImageUrl].compactMap { $0 } }
-}
-
-struct ArticleDetail: Codable, Equatable, Identifiable {
-    let id: String
-    let title: String
-    let summary: String?
-    let originalUrl: String?
-    let sourceName: String?
-    let coverImageOriginalUrl: String?
-    let coverImageUrl: String?
-    let tags: String?
-    let lang: LanguageCode
-    let displayOrder: Int
-    let updatedAt: String
-    let content: String
-    let coverImageFilename: String?
-    let createdBy: String?
-    let updatedBy: String?
-    let isActive: Bool?
-    let createdAt: String?
 }
 
 struct MediaItem: OpenListItem {
@@ -163,7 +144,9 @@ struct MediaItem: OpenListItem {
     var imageURL: String? { thumbnailUrl ?? coverImageUrl ?? url }
     var searchableText: String { [title, name, description, artist, tags].compactMap { $0 }.joined(separator: " ") }
     var sortTitle: String { displayTitle }
-    var imageURLsForPrefetch: [String] { [thumbnailUrl ?? url].compactMap { $0 } }
+    var imageURLsForPrefetch: [String] {
+        [url, thumbnailUrl, originalUrl, coverImageUrl].compactMap { $0 }
+    }
 }
 
 struct FileItem: OpenListItem {

@@ -120,7 +120,7 @@ struct RemoteImage: View {
         if let url = parsedURL {
             Group {
                 if url.pathExtension.lowercased() == "svg" {
-                    SVGImage(url: url, contentMode: contentMode)
+                    SVGImage(url: url, contentMode: contentMode, cache: cache)
                 } else {
                     CachedAsyncImage(url: url, contentMode: contentMode, systemFallback: systemFallback, cache: cache)
                         // KEY FIX: bind view identity to the URL so LazyVStack
@@ -210,19 +210,32 @@ private func fallbackView(_ systemName: String) -> some View {
 private struct SVGImage: View {
     let url: URL
     let contentMode: ContentMode
-    
+    let cache: ImageCache
+    @State private var base64: String? = nil
+
     var body: some View {
-        SVGWebView(url: url, contentMode: contentMode)
-            .clipped()
+        Group {
+            if let data = base64 {
+                SVGWebView(base64: data, contentMode: contentMode)
+            } else {
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .task(id: url) {
+            if let data = try? await cache.data(for: url) {
+                base64 = data.base64EncodedString()
+            }
+        }
     }
 }
 
 private struct SVGWebView: UIViewRepresentable {
-    let url: URL
+    let base64: String
     let contentMode: ContentMode
 
     final class Coordinator {
-        var loadedURL: URL?
+        var loadedBase64: String?
         var loadedContentMode: ContentMode?
     }
 
@@ -239,11 +252,9 @@ private struct SVGWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // Avoid reloading on every SwiftUI update pass — only reload when
-        // the URL or content-mode actually changes, preventing SVG flicker.
-        guard context.coordinator.loadedURL != url ||
+        guard context.coordinator.loadedBase64 != base64 ||
               context.coordinator.loadedContentMode != contentMode else { return }
-        context.coordinator.loadedURL = url
+        context.coordinator.loadedBase64 = base64
         context.coordinator.loadedContentMode = contentMode
 
         let objectFit = contentMode == .fill ? "cover" : "contain"
@@ -257,7 +268,7 @@ private struct SVGWebView: UIViewRepresentable {
             </style>
         </head>
         <body>
-            <img src="\(url.absoluteString)">
+            <img src="data:image/svg+xml;base64,\(base64)">
         </body>
         </html>
         """

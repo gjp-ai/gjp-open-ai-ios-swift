@@ -41,32 +41,6 @@ enum CacheManager {
         }
     }
 
-    // MARK: - Single-item cache (used for ArticleDetail)
-
-    static func saveItem<T: Encodable>(_ item: T, forKey key: String) {
-        guard let directory = ensureDirectory() else { return }
-        let fileURL = directory.appendingPathComponent("\(key).json")
-        do {
-            let data = try JSONEncoder().encode(item)
-            try data.write(to: fileURL)
-        } catch {
-            print("Cache saveItem error for \(key): \(error)")
-        }
-    }
-
-    static func loadItem<T: Decodable>(forKey key: String) -> T? {
-        guard let directory = getCacheDirectory() else { return nil }
-        let fileURL = directory.appendingPathComponent("\(key).json")
-        guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
-        do {
-            let data = try Data(contentsOf: fileURL)
-            return try JSONDecoder().decode(T.self, from: data)
-        } catch {
-            print("Cache loadItem error for \(key): \(error)")
-            return nil
-        }
-    }
-
     // MARK: - Management
 
     static func size(forKey key: String) -> Int64 {

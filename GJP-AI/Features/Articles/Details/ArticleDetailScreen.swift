@@ -3,95 +3,95 @@ import WebKit
 
 struct ArticleDetailScreen: View {
     @EnvironmentObject private var app: AppModel
-    let articleID: String
-    let api: OpenAPIClient
-    @State private var state: ScreenState<ArticleDetail> = .loading
+    let article: ArticleSummary
 
     var body: some View {
         ScrollView {
-            switch state {
-            case .loading:
-                ProgressView(L10n.text("loading", app.language))
-                    .frame(maxWidth: .infinity, minHeight: 300)
-            case let .error(message):
-                ContentUnavailableView(L10n.text("failed", app.language), systemImage: "exclamationmark.triangle", description: Text(message))
-                    .frame(minHeight: 300)
-            case .empty:
-                ContentUnavailableView(L10n.text("empty", app.language), systemImage: "newspaper")
-                    .frame(minHeight: 300)
-            case let .content(article):
-                VStack(alignment: .leading, spacing: 0) {
-                    if let coverUrl = article.coverImageUrl, !coverUrl.isEmpty {
-                        RemoteImage(urlString: coverUrl, title: article.title, systemFallback: "newspaper", contentMode: .fit, cache: .articles)
-                            .frame(maxWidth: .infinity)
-                            .overlay(alignment: .bottomLeading) {
-                                LinearGradient(
-                                    stops: [
-                                        .init(color: .clear, location: 0.25),
-                                        .init(color: Color.black.opacity(0.45), location: 1.0)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            }
-                    }
+            VStack(alignment: .leading, spacing: 0) {
+                if let coverUrl = article.coverImageUrl, !coverUrl.isEmpty {
+                    RemoteImage(urlString: coverUrl, title: article.title, systemFallback: "newspaper", contentMode: .fit, cache: .articles)
+                        .frame(maxWidth: .infinity)
+                        .overlay(alignment: .bottomLeading) {
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .clear, location: 0.25),
+                                    .init(color: Color.black.opacity(0.45), location: 1.0)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        }
+                }
 
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack(spacing: 8) {
-                            if let source = article.sourceName, !source.isEmpty {
-                                Label(source, systemImage: "building.2")
-                                    .lineLimit(1)
-                            }
-
-                            if article.sourceName?.isEmpty == false {
-                                Circle()
-                                    .fill(Color.secondary.opacity(0.35))
-                                    .frame(width: 4, height: 4)
-                            }
-
-                            Label(String(article.updatedAt.prefix(10)), systemImage: "calendar")
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 8) {
+                        if let source = article.sourceName, !source.isEmpty {
+                            Label(source, systemImage: "building.2")
                                 .lineLimit(1)
                         }
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .labelStyle(.titleAndIcon)
 
-                        Text(article.title)
-                            .font(.title.weight(.bold))
-                            .foregroundStyle(.primary)
-                            .fixedSize(horizontal: false, vertical: true)
-
-
-
-                        HStack(spacing: 12) {
-                            ExternalLinkButton(titleKey: "original", urlString: article.originalUrl, systemImage: "safari")
-                            Spacer()
+                        if article.sourceName?.isEmpty == false {
+                            Circle()
+                                .fill(Color.secondary.opacity(0.35))
+                                .frame(width: 4, height: 4)
                         }
 
-                        Divider()
-
-                        ArticleHTMLContentView(html: article.content)
-
-                        TagFlow(tags: article.tags)
+                        Label(String(article.updatedAt.prefix(10)), systemImage: "calendar")
+                            .lineLimit(1)
                     }
-                    .padding(.horizontal, 18)
-                    .padding(.top, article.coverImageUrl == nil ? 18 : 20)
-                    .padding(.bottom, 28)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .labelStyle(.titleAndIcon)
+
+                    Text(article.title)
+                        .font(.title.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 12) {
+                        ExternalLinkButton(titleKey: "original", urlString: article.originalUrl, systemImage: "safari")
+                        Spacer()
+                    }
+
+                    Divider()
+
+                    if let content = article.content, !content.isEmpty {
+                        ArticleHTMLContentView(html: content)
+                    } else {
+                        ContentUnavailableView(L10n.text("empty", app.language), systemImage: "doc.text")
+                    }
+
+                    TagFlow(tags: article.tags)
                 }
+                .padding(.horizontal, 18)
+                .padding(.top, article.coverImageUrl == nil ? 18 : 20)
+                .padding(.bottom, 28)
             }
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: articleID) { await load() }
+        .task {
+            // Prefetch images found in HTML to help with offline view
+            prefetchImages(from: article.content ?? "")
+        }
     }
 
-    private func load() async {
-        state = .loading
-        do {
-            state = .content(try await api.article(id: articleID))
-        } catch {
-            state = .error(error.localizedDescription)
+    private func prefetchImages(from html: String) {
+        // Simple regex to find image URLs in HTML
+        let pattern = "<img [^>]*src=\"([^\"]+)\""
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return }
+        
+        let nsString = html as NSString
+        let matches = regex.matches(in: html, options: [], range: NSRange(location: 0, length: nsString.length))
+        
+        let urls = matches.compactMap { match -> String? in
+            guard match.numberOfRanges > 1 else { return nil }
+            return nsString.substring(with: match.range(at: 1))
+        }
+        
+        if !urls.isEmpty {
+            ImageCache.articles.prefetch(urlStrings: urls)
         }
     }
 }

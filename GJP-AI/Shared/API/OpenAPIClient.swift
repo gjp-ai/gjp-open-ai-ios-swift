@@ -1,23 +1,10 @@
 import Foundation
 
-enum APIError: LocalizedError, Equatable {
+enum APIError: Error {
     case invalidURL
     case httpStatus(Int, String)
-    case envelope(Int, String)
     case decoding(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidURL:
-            "Invalid API URL."
-        case let .httpStatus(code, message):
-            "Request failed with status \(code): \(message)"
-        case let .envelope(_, message):
-            message
-        case let .decoding(message):
-            "Could not read server response: \(message)"
-        }
-    }
+    case envelope(Int, String)
 }
 
 protocol HTTPSession {
@@ -27,7 +14,7 @@ protocol HTTPSession {
 extension URLSession: HTTPSession {}
 
 final class OpenAPIClient {
-    static let productionBaseURL = URL(string: "https://www.ganjianping.com/api/open/")!
+    static let productionBaseURL = URL(string: "https://api.gjp.org/api/open")!
 
     private let baseURL: URL
     private let session: HTTPSession
@@ -52,11 +39,9 @@ final class OpenAPIClient {
     }
 
     func articles(page: Int, size: Int, language: LanguageCode, title: String?, tags: String?) async throws -> PagedData<ArticleSummary> {
-        try await fetchPage("articles", page: page, size: size, language: language, searchName: "title", searchValue: title, tags: tags)
-    }
-
-    func article(id: String) async throws -> ArticleDetail {
-        try await fetch("articles/\(id)", queryItems: [])
+        try await fetchPage("articles", page: page, size: size, language: language, searchName: "title", searchValue: title, tags: tags, extraQueryItems: [
+            URLQueryItem(name: "isIncludeContent", value: "true")
+        ])
     }
 
     func images(page: Int, size: Int, language: LanguageCode, name: String?, tags: String?) async throws -> PagedData<MediaItem> {
@@ -82,7 +67,8 @@ final class OpenAPIClient {
         language: LanguageCode,
         searchName: String,
         searchValue: String?,
-        tags: String?
+        tags: String?,
+        extraQueryItems: [URLQueryItem] = []
     ) async throws -> PagedData<T> {
         var items = [
             URLQueryItem(name: "page", value: String(page)),
@@ -92,6 +78,8 @@ final class OpenAPIClient {
             URLQueryItem(name: "sort", value: "displayOrder"),
             URLQueryItem(name: "direction", value: "asc")
         ]
+        
+        items.append(contentsOf: extraQueryItems)
 
         if let trimmed = searchValue?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty {
             items.append(URLQueryItem(name: searchName, value: trimmed))
@@ -114,7 +102,13 @@ final class OpenAPIClient {
             throw APIError.invalidURL
         }
 
+        print("🌐 [API Request] \(url.absoluteString)")
         let (data, response) = try await session.data(from: url)
+        
+        if let jsonString = String(data: data, encoding: .utf8) {
+            print("📦 [API Response] \(jsonString)")
+        }
+
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             let text = String(data: data, encoding: .utf8) ?? ""
             throw APIError.httpStatus(http.statusCode, text)
@@ -125,10 +119,12 @@ final class OpenAPIClient {
             if envelope.status.code >= 400 {
                 throw APIError.envelope(envelope.status.code, envelope.status.message)
             }
+            
             return envelope.data
         } catch let error as APIError {
             throw error
         } catch {
+            print("❌ [API Error] Decoding failed: \(error)")
             throw APIError.decoding(error.localizedDescription)
         }
     }

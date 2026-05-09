@@ -37,20 +37,32 @@ final class ImageCache {
     /// otherwise fetching from the disk cache or network.
     func image(for url: URL) async throws -> UIImage {
         let key = url as NSURL
-
         if let cached = memory.object(forKey: key) {
             return cached
         }
 
+        let data = try await self.data(for: url)
+        guard let image = UIImage(data: data) else {
+            throw URLError(.cannotDecodeContentData)
+        }
+        
+        memory.setObject(image, forKey: key, cost: data.count)
+        return image
+    }
+
+    func data(for url: URL) async throws -> Data {
+        let key = url as NSURL
         let request = URLRequest(url: url,
                                  cachePolicy: .returnCacheDataElseLoad,
                                  timeoutInterval: 30)
 
-        let (data, response) = try await session.data(for: request)
-
-        guard let image = UIImage(data: data) else {
-            throw URLError(.cannotDecodeContentData)
+        // 1. Check disk cache first
+        if let cachedResponse = urlCache.cachedResponse(for: request) {
+            return cachedResponse.data
         }
+
+        // 2. Fetch from network
+        let (data, response) = try await session.data(for: request)
 
         if let httpResponse = response as? HTTPURLResponse {
             let cacheableResponse = CachedURLResponse(response: httpResponse,
@@ -59,10 +71,7 @@ final class ImageCache {
             urlCache.storeCachedResponse(cacheableResponse, for: request)
         }
 
-        let cost = data.count
-        memory.setObject(image, forKey: key, cost: cost)
-
-        return image
+        return data
     }
 
     // MARK: - Shared URL parser
