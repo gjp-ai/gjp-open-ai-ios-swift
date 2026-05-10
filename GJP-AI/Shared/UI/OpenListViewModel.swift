@@ -22,10 +22,10 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
     private var currentLanguage: LanguageCode = .en
     private var rawItems: [Item] = []
  
-    init(pageSize: Int = 50, cacheKey: String? = nil, imageCache: ImageCache = .media, loadPage: @escaping (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>) {
+    init(pageSize: Int = 50, cacheKey: String? = nil, imageCache: ImageCache? = nil, loadPage: @escaping (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>) {
         self.pageSize = pageSize
         self.cacheKey = cacheKey
-        self.imageCache = imageCache
+        self.imageCache = imageCache ?? .media
         self.loadPage = loadPage
     }
  

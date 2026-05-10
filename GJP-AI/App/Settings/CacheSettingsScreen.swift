@@ -15,8 +15,9 @@ struct CacheSettingsScreen: View {
     var body: some View {
         List {
             Section {
-                cacheRow(title: L10n.text("settings", app.language), size: userDefaultsSize(), date: nil, clearAction: clearAppSettings) {
-                    CacheDataViewerScreen(title: L10n.text("settings", app.language), key: nil, clearAction: clearAppSettings)
+                let settingsDate = userDefaultsDate()
+                cacheRow(title: L10n.text("settings", app.language), size: userDefaultsSize(), date: settingsDate, clearAction: clearAppSettings) {
+                    CacheDataViewerScreen(title: L10n.text("settings", app.language), key: nil, clearAction: clearAppSettings, dates: [settingsDate].compactMap { $0 })
                 }
                 cacheRow(title: L10n.text("websites", app.language), key: "websites")
                 cacheRow(title: L10n.text("questions", app.language), key: "questions")
@@ -63,8 +64,10 @@ struct CacheSettingsScreen: View {
             loadSizes()
         }
         
+        let dates = [cacheDates["\(key)_EN"] ?? nil, cacheDates["\(key)_ZH"] ?? nil].compactMap { $0 }
+        
         return cacheRow(title: title, size: size, date: date, clearAction: clearAction) {
-            CacheDataViewerScreen(title: title, key: key, clearAction: clearAction)
+            CacheDataViewerScreen(title: title, key: key, clearAction: clearAction, dates: dates)
         }
     }
 
@@ -129,8 +132,14 @@ struct CacheSettingsScreen: View {
         return Int64(cachedSettings.data(using: .utf8)?.count ?? 0)
     }
 
+    private func userDefaultsDate() -> Date? {
+        let timestamp = UserDefaults.standard.double(forKey: "gjp.appSettings.cache.date")
+        return timestamp > 0 ? Date(timeIntervalSince1970: timestamp) : nil
+    }
+
     private func clearAppSettings() {
         UserDefaults.standard.removeObject(forKey: "gjp.appSettings.cache")
+        UserDefaults.standard.removeObject(forKey: "gjp.appSettings.cache.date")
         loadSizes()
     }
 
@@ -157,7 +166,16 @@ private struct CacheDataViewerScreen: View {
     let title: String
     let key: String?
     let clearAction: () -> Void
+    let dates: [Date]
     @State private var rawData: String = ""
+
+    private var lastUpdateString: String? {
+        guard let latest = dates.sorted().last else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .medium
+        return formatter.string(from: latest)
+    }
 
     var body: some View {
         ScrollView {
@@ -165,10 +183,20 @@ private struct CacheDataViewerScreen: View {
                 ProgressView()
                     .padding()
             } else {
-                Text(rawData)
-                    .font(.system(.caption2, design: .monospaced))
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 12) {
+                    if let updateString = lastUpdateString {
+                        Text("Last Update: \(updateString)")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                    }
+                    
+                    Text(rawData)
+                        .font(.system(.caption2, design: .monospaced))
+                        .padding()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .navigationTitle(title)
@@ -247,17 +275,30 @@ private struct MediaCacheViewerScreen: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(file.id)
-                        .font(.caption2.monospaced())
-                        .lineLimit(1)
+                    if let original = file.originalURL, let url = URL(string: original) {
+                        Text(url.lastPathComponent)
+                            .font(.subheadline.weight(.medium))
+                            .lineLimit(1)
+                        Text(url.host ?? "")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    } else {
+                        Text(file.id)
+                            .font(.caption2.monospaced())
+                            .lineLimit(1)
+                    }
                     Text(ByteCountFormatter.string(fromByteCount: file.size, countStyle: .file))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text(file.date, style: .date)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(file.date, style: .date)
+                    Text(file.date, style: .time)
+                }
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
             }
             .padding(.vertical, 2)
         }

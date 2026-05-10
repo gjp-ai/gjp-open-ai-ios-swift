@@ -62,6 +62,7 @@ final class AppModel: ObservableObject {
             settingsError = nil
             if let encoded = try? JSONEncoder().encode(fetched) {
                 defaults.set(String(data: encoded, encoding: .utf8) ?? "", forKey: "gjp.appSettings.cache")
+                defaults.set(Date().timeIntervalSince1970, forKey: "gjp.appSettings.cache.date")
             }
         } catch {
             // Only set error if we don't have any settings at all (neither fetched nor cached)
@@ -156,7 +157,7 @@ enum L10n {
         "clearAllCache": [.en: "Clear All Cache", .zh: "清空所有缓存"],
         "clear": [.en: "Clear", .zh: "清空"],
         "websiteLogos": [.en: "Website Logos", .zh: "网站图标"],
-        "articleCovers": [.en: "Article Covers", .zh: "文章封面"],
+        "articleCovers": [.en: "Article Cover Images", .zh: "文章封面"],
         "brandName": [.en: "GJP AI", .zh: "GJP AI"]
     ]
 }

@@ -99,7 +99,7 @@ private struct DynamicHTMLWebView: UIViewRepresentable {
         let document = HTMLDocumentBuilder.document(for: html)
         if context.coordinator.loadedHTML != document {
             context.coordinator.loadedHTML = document
-            webView.loadHTMLString(document, baseURL: nil)
+            webView.loadHTMLString(document, baseURL: Bundle.main.bundleURL)
         }
     }
 

@@ -18,9 +18,7 @@ struct ImagePreviewSheet: View {
     }
 
     private var fullSizeUrl: String? {
-        [currentItem.url, currentItem.originalUrl, currentItem.coverImageUrl, currentItem.thumbnailUrl]
-            .compactMap { $0 }
-            .first { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        currentItem.imageURL
     }
 
     var body: some View {
@@ -29,11 +27,8 @@ struct ImagePreviewSheet: View {
                 TabView(selection: $currentIndex) {
                     ForEach(items.indices, id: \.self) { index in
                         let item = items[index]
-                        let url = [item.url, item.originalUrl, item.coverImageUrl, item.thumbnailUrl]
-                            .compactMap { $0 }
-                            .first { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
                         
-                        RemoteImage(urlString: url, title: item.altText ?? item.displayTitle, systemFallback: "photo", contentMode: .fit)
+                        RemoteImage(urlString: item.imageURL, title: item.altText ?? item.displayTitle, systemFallback: "photo", contentMode: .fit)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .scaleEffect(currentIndex == index ? scale : 1.0)
                             .gesture(

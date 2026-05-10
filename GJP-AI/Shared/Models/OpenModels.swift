@@ -141,11 +141,11 @@ struct MediaItem: OpenListItem {
     let updatedAt: String
 
     var displayTitle: String { title ?? name ?? id }
-    var imageURL: String? { thumbnailUrl ?? coverImageUrl ?? url }
+    var imageURL: String? { url }
     var searchableText: String { [title, name, description, artist, tags].compactMap { $0 }.joined(separator: " ") }
     var sortTitle: String { displayTitle }
     var imageURLsForPrefetch: [String] {
-        [url, thumbnailUrl, originalUrl, coverImageUrl].compactMap { $0 }
+        [url].compactMap { $0 }
     }
 }
 

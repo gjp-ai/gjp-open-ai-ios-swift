@@ -272,7 +272,7 @@ private struct SVGWebView: UIViewRepresentable {
         </body>
         </html>
         """
-        webView.loadHTMLString(html, baseURL: nil)
+        webView.loadHTMLString(html, baseURL: Bundle.main.bundleURL)
     }
 }
 
