@@ -38,12 +38,6 @@ struct QuestionsScreen: View {
                     QuestionRow(question: question)
                 }
                 .openListCardRow()
-                if question.id == viewModel.items.last?.id, viewModel.canLoadMore {
-                    LoadMoreButton(isLoading: viewModel.isLoadingMore) {
-                        Task { await viewModel.loadMore() }
-                    }
-                    .openListCardRow()
-                }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)

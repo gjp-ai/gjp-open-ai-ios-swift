@@ -41,13 +41,6 @@ struct ApiResponse<T: Codable>: Codable {
     let meta: ApiMeta?
 }
 
-struct PagedData<T: Codable>: Codable {
-    let content: [T]
-    let page: Int
-    let size: Int
-    let totalElements: Int
-    let totalPages: Int
-}
 
 struct AppSetting: Codable, Identifiable, Equatable {
     var id: String { "\(name)-\(lang.rawValue)" }
@@ -64,7 +57,7 @@ protocol OpenListItem: Identifiable, Codable, Equatable, Hashable {
     var updatedAt: String { get }
     var searchableText: String { get }
     var sortTitle: String { get }
-    /// URLs of images that should be prefetched into ImageCache when this
+    /// URLs of images that should be prefetched into MediaCache when this
     /// item is restored from disk cache, so they are ready on first render.
     var imageURLsForPrefetch: [String] { get }
 }
@@ -145,7 +138,7 @@ struct MediaItem: OpenListItem {
     var searchableText: String { [title, name, description, altText, artist, tags].compactMap { $0 }.joined(separator: " ") }
     var sortTitle: String { displayTitle }
     var imageURLsForPrefetch: [String] {
-        [url].compactMap { $0 }
+        [url, coverImageUrl, thumbnailUrl].compactMap { $0 }
     }
 }
 

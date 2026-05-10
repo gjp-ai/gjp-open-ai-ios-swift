@@ -109,11 +109,11 @@ struct RemoteImage: View {
     let title: String
     let systemFallback: String
     var contentMode: ContentMode = .fill
-    var cache: ImageCache = .media
+    var cache: MediaCache = .media
 
     private var parsedURL: URL? {
         guard let raw = urlString else { return nil }
-        return ImageCache.parsedURL(from: raw)
+        return MediaCache.parsedURL(from: raw)
     }
 
     var body: some View {
@@ -138,14 +138,14 @@ struct RemoteImage: View {
 /// A cached image loader that bypasses `Cache-Control: no-store` server headers.
 /// `AsyncImage` relies on `URLSession` which respects those headers and never
 /// caches responses — causing blank images whenever a cell is reused or
-/// the view re-renders. This view uses `ImageCache` (a custom two-level
+/// the view re-renders. This view uses `MediaCache` (a custom two-level
 /// memory + disk cache with `storagePolicy: .allowed`) to ensure images
 /// are always served from cache after the first successful load.
 private struct CachedAsyncImage: View {
     let url: URL
     let contentMode: ContentMode
     let systemFallback: String
-    let cache: ImageCache
+    let cache: MediaCache
 
     enum LoadPhase {
         case loading
@@ -210,7 +210,7 @@ private func fallbackView(_ systemName: String) -> some View {
 private struct SVGImage: View {
     let url: URL
     let contentMode: ContentMode
-    let cache: ImageCache
+    let cache: MediaCache
     @State private var base64: String? = nil
 
     var body: some View {

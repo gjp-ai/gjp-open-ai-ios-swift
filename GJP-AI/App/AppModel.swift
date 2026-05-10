@@ -30,6 +30,20 @@ final class AppModel: ObservableObject {
         }
     }
 
+    var totalCacheSize: Int64 {
+        let dbSize = SQLiteContentDatabase.shared.totalFileSize
+        let mediaSize = MediaCache.websites.diskSize +
+                        MediaCache.articles.diskSize +
+                        MediaCache.media.diskSize +
+                        MediaCache.videos.diskSize +
+                        MediaCache.audios.diskSize
+        
+        let cachedSettings = defaults.string(forKey: "gjp.appSettings.cache") ?? ""
+        let settingsSize = Int64(cachedSettings.data(using: .utf8)?.count ?? 0)
+        
+        return dbSize + Int64(mediaSize) + settingsSize
+    }
+
     var tint: Color {
         switch accentChoice {
         case .blue: .blue

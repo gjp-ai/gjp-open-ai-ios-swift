@@ -48,12 +48,6 @@ struct ImagesScreen: View {
                         .buttonStyle(.plain)
                     }
                 }
-                if viewModel.canLoadMore {
-                    LoadMoreButton(isLoading: viewModel.isLoadingMore) {
-                        Task { await viewModel.loadMore() }
-                    }
-                    .padding(.horizontal)
-                }
             }
             .refreshable { await viewModel.refresh() }
             .overlay(alignment: .top) {

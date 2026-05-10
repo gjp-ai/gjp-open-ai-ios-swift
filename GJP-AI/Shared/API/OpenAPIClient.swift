@@ -30,82 +30,36 @@ final class OpenAPIClient {
         try await fetch("app-settings", queryItems: [])
     }
 
-    func websites(page: Int, size: Int, language: LanguageCode, name: String?, tags: String?) async throws -> PagedData<Website> {
-        try await fetchPage("websites", page: page, size: size, language: language, searchName: "name", searchValue: name, tags: tags)
-    }
 
     func allWebsites(updatedAfter: String?) async throws -> [Website] {
         try await fetchAll("websites/all", updatedAfter: updatedAfter)
     }
 
-    func questions(page: Int, size: Int, language: LanguageCode, question: String?, tags: String?) async throws -> PagedData<Question> {
-        try await fetchPage("questions", page: page, size: size, language: language, searchName: "question", searchValue: question, tags: tags)
-    }
 
     func allQuestions(updatedAfter: String?) async throws -> [Question] {
         try await fetchAll("questions/all", updatedAfter: updatedAfter)
     }
 
-    func articles(page: Int, size: Int, language: LanguageCode, title: String?, tags: String?) async throws -> PagedData<ArticleSummary> {
-        try await fetchPage("articles", page: page, size: size, language: language, searchName: "title", searchValue: title, tags: tags, extraQueryItems: [
-            URLQueryItem(name: "isIncludeContent", value: "true")
-        ])
-    }
 
     func allArticles(updatedAfter: String?) async throws -> [ArticleSummary] {
         try await fetchAll("articles/all", updatedAfter: updatedAfter)
     }
 
-    func images(page: Int, size: Int, language: LanguageCode, name: String?, tags: String?) async throws -> PagedData<MediaItem> {
-        try await fetchPage("images", page: page, size: size, language: language, searchName: "name", searchValue: name, tags: tags)
-    }
 
     func allImages(updatedAfter: String?) async throws -> [MediaItem] {
         try await fetchAll("images/all", updatedAfter: updatedAfter)
     }
 
-    func videos(page: Int, size: Int, language: LanguageCode, name: String?, tags: String?) async throws -> PagedData<MediaItem> {
-        try await fetchPage("videos", page: page, size: size, language: language, searchName: "name", searchValue: name, tags: tags)
+    func allVideos(updatedAfter: String?) async throws -> [MediaItem] {
+        try await fetchAll("videos/all", updatedAfter: updatedAfter)
     }
 
-    func audios(page: Int, size: Int, language: LanguageCode, name: String?, tags: String?) async throws -> PagedData<MediaItem> {
-        try await fetchPage("audios", page: page, size: size, language: language, searchName: "name", searchValue: name, tags: tags)
+    func allAudios(updatedAfter: String?) async throws -> [MediaItem] {
+        try await fetchAll("audios/all", updatedAfter: updatedAfter)
     }
 
-    func files(page: Int, size: Int, language: LanguageCode, name: String?, tags: String?) async throws -> PagedData<FileItem> {
-        try await fetchPage("files", page: page, size: size, language: language, searchName: "name", searchValue: name, tags: tags)
-    }
-
-    private func fetchPage<T: Codable>(
-        _ path: String,
-        page: Int,
-        size: Int,
-        language: LanguageCode,
-        searchName: String,
-        searchValue: String?,
-        tags: String?,
-        extraQueryItems: [URLQueryItem] = []
-    ) async throws -> PagedData<T> {
-        var items = [
-            URLQueryItem(name: "page", value: String(page)),
-            URLQueryItem(name: "size", value: String(size)),
-            URLQueryItem(name: "lang", value: language.rawValue),
-            URLQueryItem(name: "isActive", value: "true"),
-            URLQueryItem(name: "sort", value: "displayOrder"),
-            URLQueryItem(name: "direction", value: "asc")
-        ]
-        
-        items.append(contentsOf: extraQueryItems)
-
-        if let trimmed = searchValue?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty {
-            items.append(URLQueryItem(name: searchName, value: trimmed))
-        }
-
-        if let trimmedTags = tags?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmedTags.isEmpty {
-            items.append(URLQueryItem(name: "tags", value: trimmedTags))
-        }
-
-        return try await fetch(path, queryItems: items)
+    func allFiles(updatedAfter: String?) async throws -> [FileItem] {
+        try await fetchAll("files/all", updatedAfter: updatedAfter)
     }
 
     private func fetchAll<T: Codable>(_ path: String, updatedAfter: String?) async throws -> [T] {

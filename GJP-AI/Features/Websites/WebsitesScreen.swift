@@ -54,14 +54,6 @@ struct WebsitesScreen: View {
                         .buttonStyle(.plain)
                         .disabled(website.normalizedURL == nil)
                     }
-
-                    if viewModel.canLoadMore {
-                        LoadMoreButton(isLoading: viewModel.isLoadingMore) {
-                            Task { await viewModel.loadMore() }
-                        }
-                        .gridCellColumns(2)
-                        .padding(.top, 4)
-                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 14)

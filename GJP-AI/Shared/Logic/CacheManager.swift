@@ -74,4 +74,8 @@ enum CacheManager {
         guard let data = try? Data(contentsOf: fileURL) else { return nil }
         return String(data: data, encoding: .utf8)
     }
+
+    static func summary(for key: String) -> String {
+        loadRaw(forKey: key) ?? "No data found."
+    }
 }

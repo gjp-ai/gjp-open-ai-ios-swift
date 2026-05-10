@@ -1,12 +1,14 @@
 import UIKit
 import Foundation
 
-/// A two-level (memory + disk) image cache that deliberately ignores
+/// A two-level (memory + disk) media cache that deliberately ignores
 /// server-sent `Cache-Control: no-store` headers.
-final class ImageCache {
-    static let websites = ImageCache(namespace: "websites", diskCapacity: 50 * 1024 * 1024)
-    static let articles = ImageCache(namespace: "articles", diskCapacity: 100 * 1024 * 1024)
-    static let media = ImageCache(namespace: "media", diskCapacity: 200 * 1024 * 1024)
+final class MediaCache {
+    static let websites = MediaCache(namespace: AppConfig.Cache.Media.websitesNamespace, diskCapacity: AppConfig.Cache.Media.websitesCapacity)
+    static let articles = MediaCache(namespace: AppConfig.Cache.Media.articlesNamespace, diskCapacity: AppConfig.Cache.Media.articlesCapacity)
+    static let media = MediaCache(namespace: AppConfig.Cache.Media.mediaNamespace, diskCapacity: AppConfig.Cache.Media.mediaCapacity)
+    static let videos = MediaCache(namespace: AppConfig.Cache.Media.videosNamespace, diskCapacity: AppConfig.Cache.Media.videosCapacity)
+    static let audios = MediaCache(namespace: AppConfig.Cache.Media.audiosNamespace, diskCapacity: AppConfig.Cache.Media.audiosCapacity)
 
     // MARK: Memory cache (shared cost limit across instances is fine, or per instance)
     private let memory = NSCache<NSURL, UIImage>()
@@ -20,15 +22,14 @@ final class ImageCache {
     private init(namespace: String, diskCapacity: Int) {
         self.namespace = namespace
         let cacheDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("gjp_image_cache")
+            .appendingPathComponent(AppConfig.Cache.Media.rootFolderName)
             .appendingPathComponent(namespace)
 
-        // 20 MB memory per instance, custom disk capacity
-        urlCache = URLCache(memoryCapacity: 20 * 1024 * 1024,
+        urlCache = URLCache(memoryCapacity: AppConfig.Cache.Media.memoryCapacity,
                             diskCapacity: diskCapacity,
                             directory: cacheDirectory)
-        memory.totalCostLimit = 20 * 1024 * 1024
-        self.manifestURL = cacheDirectory?.appendingPathComponent("manifest.json")
+        memory.totalCostLimit = AppConfig.Cache.Media.memoryCapacity
+        self.manifestURL = cacheDirectory?.appendingPathComponent(AppConfig.Cache.Media.manifestFileName)
 
         let config = URLSessionConfiguration.default
         config.urlCache = urlCache
@@ -68,7 +69,7 @@ final class ImageCache {
         let normalized = normalizedURL(url)
         let request = URLRequest(url: normalized,
                                  cachePolicy: .returnCacheDataElseLoad,
-                                 timeoutInterval: 30)
+                                 timeoutInterval: AppConfig.API.timeoutInterval)
 
         // 1. Check disk cache first
         if let cachedResponse = urlCache.cachedResponse(for: request) {
@@ -106,7 +107,7 @@ final class ImageCache {
     // MARK: - Background prefetch
 
     func prefetch(urlStrings: [String]) {
-        let urls = urlStrings.compactMap { ImageCache.parsedURL(from: $0) }
+        let urls = urlStrings.compactMap { MediaCache.parsedURL(from: $0) }
         guard !urls.isEmpty else { return }
         Task(priority: .background) { [weak self] in
             guard let self else { return }
@@ -139,7 +140,7 @@ final class ImageCache {
 
     private func getCacheDirectory() -> URL? {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("gjp_image_cache")
+            .appendingPathComponent(AppConfig.Cache.Media.rootFolderName)
             .appendingPathComponent(namespace)
     }
 

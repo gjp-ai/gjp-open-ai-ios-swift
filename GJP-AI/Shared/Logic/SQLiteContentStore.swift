@@ -8,6 +8,18 @@ struct SQLiteContentStats: Equatable {
     let lastModified: Date?
 }
 
+struct SQLiteContentRow: Identifiable, Equatable {
+    let id: String
+    let lang: String
+    let title: String
+    let tags: String?
+    let displayOrder: Int
+    let updatedAt: String
+    let syncedAt: Double
+    let json: String
+    let size: Int64
+}
+
 final class SQLiteContentStore<Item: OpenListItem> {
     private let key: String
     private let encoder = JSONEncoder()
@@ -72,6 +84,11 @@ final class SQLiteContentDatabase {
     private let queue = DispatchQueue(label: "gjp.sqlite-content-database")
     private var didInitialize = false
 
+    var totalFileSize: Int64 {
+        let attrs = try? FileManager.default.attributesOfItem(atPath: databaseURL.path)
+        return attrs?[.size] as? Int64 ?? 0
+    }
+
     private init() {
         let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
@@ -127,7 +144,7 @@ final class SQLiteContentDatabase {
     func save<Item: OpenListItem>(
         _ items: [Item],
         key: String,
-        language: LanguageCode,
+        language: LanguageCode, // The primary language that triggered the sync
         replaceExisting: Bool,
         successfulSyncDate: String,
         encoder: JSONEncoder
@@ -136,8 +153,10 @@ final class SQLiteContentDatabase {
         queue.sync {
             withDatabase { db in
                 execute("BEGIN IMMEDIATE TRANSACTION;", db: db)
+                
+                // If full sync (replaceExisting), we clear the local cache for this resource
                 if replaceExisting {
-                    execute("DELETE FROM content_items WHERE resource_key = ? AND lang = ?;", db: db, bindings: [key, language.rawValue])
+                    execute("DELETE FROM content_items WHERE resource_key = ?;", db: db, bindings: [key])
                 }
 
                 let sql = """
@@ -153,13 +172,19 @@ final class SQLiteContentDatabase {
                 defer { sqlite3_finalize(statement) }
 
                 let syncedAt = Date().timeIntervalSince1970
-                for item in items where item.lang == language {
+                var syncedLanguages = Set<String>()
+                syncedLanguages.insert(language.rawValue)
+
+                for item in items {
                     guard let data = try? encoder.encode(item),
                           let json = String(data: data, encoding: .utf8) else { continue }
+                    
+                    syncedLanguages.insert(item.lang.rawValue)
+                    
                     sqlite3_reset(statement)
                     sqlite3_clear_bindings(statement)
                     bindText(key, to: 1, statement: statement)
-                    bindText(language.rawValue, to: 2, statement: statement)
+                    bindText(item.lang.rawValue, to: 2, statement: statement)
                     bindText(item.id, to: 3, statement: statement)
                     bindText(item.tags, to: 4, statement: statement)
                     bindText(item.searchableText, to: 5, statement: statement)
@@ -170,15 +195,20 @@ final class SQLiteContentDatabase {
                     sqlite3_bind_double(statement, 10, syncedAt)
                     _ = sqlite3_step(statement)
                 }
-                execute("""
-                INSERT OR REPLACE INTO content_sync (resource_key, lang, updated_after, synced_at)
-                VALUES (?, ?, ?, ?);
-                """, db: db, bindings: [
-                    key,
-                    language.rawValue,
-                    successfulSyncDate,
-                    String(Date().timeIntervalSince1970)
-                ])
+
+                // Update sync tracking for all languages that were updated
+                for lang in syncedLanguages {
+                    execute("""
+                    INSERT OR REPLACE INTO content_sync (resource_key, lang, updated_after, synced_at)
+                    VALUES (?, ?, ?, ?);
+                    """, db: db, bindings: [
+                        key,
+                        lang,
+                        successfulSyncDate,
+                        String(syncedAt)
+                    ])
+                }
+                
                 execute("COMMIT;", db: db)
             }
         }
@@ -249,6 +279,39 @@ final class SQLiteContentDatabase {
                 result[key] = SQLiteContentStats(key: key, count: count, size: size, lastModified: date)
             }
             return result
+        }
+    }
+
+    func rows(for key: String) -> [SQLiteContentRow] {
+        initialize()
+        return queue.sync {
+            withDatabaseResult(defaultValue: []) { db in
+                let sql = """
+                SELECT lang, id, sort_title, tags, display_order, updated_at, synced_at, json, LENGTH(json)
+                FROM content_items
+                WHERE resource_key = ?
+                ORDER BY lang ASC, display_order ASC, sort_title COLLATE NOCASE ASC;
+                """
+                var statement: OpaquePointer?
+                guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return [] }
+                defer { sqlite3_finalize(statement) }
+                bindText(key, to: 1, statement: statement)
+
+                var result: [SQLiteContentRow] = []
+                while sqlite3_step(statement) == SQLITE_ROW {
+                    let language = sqlite3_column_text(statement, 0).map { String(cString: $0) } ?? ""
+                    let id = sqlite3_column_text(statement, 1).map { String(cString: $0) } ?? ""
+                    let title = sqlite3_column_text(statement, 2).map { String(cString: $0) } ?? ""
+                    let tags = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
+                    let displayOrder = Int(sqlite3_column_int(statement, 4))
+                    let updatedAt = sqlite3_column_text(statement, 5).map { String(cString: $0) } ?? ""
+                    let syncedAt = sqlite3_column_double(statement, 6)
+                    let json = sqlite3_column_text(statement, 7).map { String(cString: $0) } ?? ""
+                    let size = sqlite3_column_int64(statement, 8)
+                    result.append(SQLiteContentRow(id: id, lang: language, title: title, tags: tags, displayOrder: displayOrder, updatedAt: updatedAt, syncedAt: syncedAt, json: json, size: size))
+                }
+                return result
+            }
         }
     }
 

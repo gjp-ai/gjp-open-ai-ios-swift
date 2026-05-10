@@ -5,8 +5,8 @@ struct VideosScreen: View {
     @StateObject private var viewModel: OpenListViewModel<MediaItem>
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(cacheKey: "videos") { page, size, language, search, tags in
-            try await api.videos(page: page, size: size, language: language, name: search, tags: tags)
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(cacheKey: "videos", imageCache: .videos) { updatedAfter in
+            try await api.allVideos(updatedAfter: updatedAfter)
         })
     }
 
@@ -22,8 +22,6 @@ struct VideosScreen: View {
                 }
         }
         .task(id: app.language) { await viewModel.load(language: app.language) }
-        .onChange(of: viewModel.searchText) { _, _ in Task { await viewModel.refresh() } }
-        .onChange(of: viewModel.selectedTag) { _, _ in Task { await viewModel.refresh() } }
     }
 
     @ViewBuilder private var content: some View {
@@ -40,12 +38,6 @@ struct VideosScreen: View {
                     VideoCard(item: item)
                 }
                 .openListCardRow()
-                if item.id == viewModel.items.last?.id, viewModel.canLoadMore {
-                    LoadMoreButton(isLoading: viewModel.isLoadingMore) {
-                        Task { await viewModel.loadMore() }
-                    }
-                    .openListCardRow()
-                }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)

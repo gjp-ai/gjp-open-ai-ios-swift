@@ -40,13 +40,6 @@ struct ArticlesScreen: View {
                             ArticleRow(article: article)
                         }
                         .buttonStyle(.plain)
-                        
-                        if article.id == viewModel.items.last?.id, viewModel.canLoadMore {
-                            LoadMoreButton(isLoading: viewModel.isLoadingMore) {
-                                Task { await viewModel.loadMore() }
-                            }
-                            .padding(.horizontal, 16)
-                        }
                     }
                 }
                 .padding(.bottom, 24)

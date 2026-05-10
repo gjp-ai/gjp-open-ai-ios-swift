@@ -115,7 +115,19 @@ struct MoreScreen: View {
                     NavigationLink {
                         CacheSettingsScreen()
                     } label: {
-                        Label(L10n.text("cache", app.language), systemImage: "internaldrive")
+                        HStack {
+                            Label(L10n.text("cache", app.language), systemImage: "internaldrive")
+                            Spacer()
+                            Text(ByteCountFormatter.string(fromByteCount: app.totalCacheSize, countStyle: .file))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    NavigationLink {
+                        AppConfigSettingsScreen()
+                    } label: {
+                        Label("App Config", systemImage: "gearshape.2")
                     }
                 } header: {
                     Text(L10n.text("settings", app.language))

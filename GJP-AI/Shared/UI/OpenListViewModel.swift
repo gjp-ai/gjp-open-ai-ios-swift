@@ -6,156 +6,40 @@ import UIKit
 final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
     @Published private(set) var state: ScreenState<[Item]> = .loading
     @Published private(set) var totalElements = 0
-    @Published private(set) var totalPages = 1
-    @Published private(set) var currentPage = 0
-    @Published private(set) var isLoadingMore = false
     @Published private(set) var isBackgroundRefreshing = false
     @Published private(set) var items: [Item] = []
     @Published var searchText = "" { didSet { updateFilteredItems() } }
     @Published var selectedTag: String? { didSet { updateFilteredItems() } }
     @Published var sortOrder: SortOrder = .displayOrder { didSet { updateFilteredItems() } }
 
-    private let pageSize: Int
-    private let loadPage: (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>
-    private let loadAll: ((String?) async throws -> [Item])?
-    private let cacheKey: String?
-    private let contentStore: SQLiteContentStore<Item>?
-    private let imageCache: ImageCache
+    private let loadAll: (String?) async throws -> [Item]
+    private let cacheKey: String
+    private let contentStore: SQLiteContentStore<Item>
+    private let imageCache: MediaCache
     private var currentLanguage: LanguageCode = .en
-    private var rawItems: [Item] = []
  
-    init(pageSize: Int = AppConfig.Pagination.defaultPageSize, cacheKey: String? = nil, imageCache: ImageCache? = nil, loadPage: @escaping (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>) {
-        self.pageSize = pageSize
-        self.cacheKey = cacheKey
-        self.contentStore = nil
-        self.imageCache = imageCache ?? .media
-        self.loadPage = loadPage
-        self.loadAll = nil
-    }
-
-    init(cacheKey: String, imageCache: ImageCache? = nil, loadAll: @escaping (String?) async throws -> [Item]) {
-        self.pageSize = Int.max
+    init(cacheKey: String, imageCache: MediaCache? = nil, loadAll: @escaping (String?) async throws -> [Item]) {
         self.cacheKey = cacheKey
         self.contentStore = SQLiteContentStore(key: cacheKey)
         self.imageCache = imageCache ?? .media
-        self.loadPage = { _, _, _, _, _ in PagedData(content: [], page: 0, size: 0, totalElements: 0, totalPages: 1) }
         self.loadAll = loadAll
     }
  
     private func updateFilteredItems() {
-        if let contentStore {
-            items = contentStore.query(
-                language: currentLanguage,
-                search: trimmedSearch,
-                tag: selectedTag,
-                sortOrder: sortOrder
-            )
-            totalElements = items.count
-            totalPages = 1
-            currentPage = 0
-            state = items.isEmpty ? .empty : .content(items)
-        } else {
-            items = filtered(rawItems)
-        }
-    }
- 
-    var canLoadMore: Bool {
-        currentPage + 1 < totalPages
+        items = contentStore.query(
+            language: currentLanguage,
+            search: trimmedSearch,
+            tag: selectedTag,
+            sortOrder: sortOrder
+        )
+        totalElements = items.count
+        state = items.isEmpty ? .empty : .content(items)
     }
  
     func load(language: LanguageCode) async {
         currentLanguage = language
-
-        if contentStore != nil {
-            await loadFromSQLiteBackedSync()
-            return
-        }
- 
-        // Restore from disk cache immediately so the UI shows content at once
-        var isCacheFresh = false
-        var hasCachedContent = false
-        if let key = cacheKey, let cached: [Item] = CacheManager.load(forKey: "\(key)_\(language.rawValue)") {
-            rawItems = cached
-            updateFilteredItems()
-            state = items.isEmpty ? .loading : .content(items)
-            hasCachedContent = !items.isEmpty
-            
-            if let date = CacheManager.lastModified(forKey: "\(key)_\(language.rawValue)") {
-                // Check against freshness duration defined in AppConfig
-                isCacheFresh = Date().timeIntervalSince(date) < AppConfig.Cache.listFreshnessDuration
-            }
-
-            // Warm ImageCache in background for all cached items so images
-            // are ready before the user scrolls (avoids loading spinners on 2nd visit)
-            let urls = cached.flatMap { $0.imageURLsForPrefetch }
-            imageCache.prefetch(urlStrings: urls)
-        } else {
-            state = .loading
-        }
-
-        if !isCacheFresh {
-            // Fetch fresh data from API — silently if we already showed cache
-            isBackgroundRefreshing = hasCachedContent
-            await fetch(reset: true)
-            isBackgroundRefreshing = false
-        }
-    }
-
-    func refresh() async {
-        if contentStore != nil {
-            await syncAllFromAPI()
-            return
-        }
-        await fetch(reset: true)
-    }
-
-    func loadMore() async {
-        guard canLoadMore, !isLoadingMore else { return }
-        isLoadingMore = true
-        await fetch(reset: false)
-        isLoadingMore = false
-    }
-
-    private func fetch(reset: Bool) async {
-        do {
-            let requestedPage = reset ? 0 : currentPage + 1
-            let page = try await loadPage(requestedPage, pageSize, currentLanguage, trimmedSearch, selectedTag)
-            totalElements = page.totalElements
-            totalPages = max(page.totalPages, 1)
-            currentPage = page.page
-            let languageItems = page.content.filter { $0.lang == currentLanguage }
-            
-            if reset {
-                rawItems = languageItems
-                // Save to cache on first page load
-                if let key = cacheKey, trimmedSearch == nil, selectedTag == nil {
-                    CacheManager.save(rawItems, forKey: "\(key)_\(currentLanguage.rawValue)")
-                }
-            } else {
-                rawItems += languageItems
-            }
-            
-            updateFilteredItems()
-            
-            if items.isEmpty {
-                state = .empty
-            } else {
-                state = .content(items)
-            }
-        } catch {
-            // If we already have items (from cache or previous fetch), don't show error state
-            if items.isEmpty {
-                state = .error(error.localizedDescription)
-            } else {
-                // Optionally show a subtle toast or just ignore if it's a background update failure
-                print("Fetch failed, using cache/existing data: \(error)")
-            }
-        }
-    }
-
-    private func loadFromSQLiteBackedSync() async {
-        guard let contentStore else { return }
         updateFilteredItems()
+        
         let cachedCount = contentStore.count(language: currentLanguage)
         let lastSync = contentStore.lastModified(language: currentLanguage)
         let isCacheFresh = lastSync.map { Date().timeIntervalSince($0) < AppConfig.Cache.listFreshnessDuration } ?? false
@@ -174,12 +58,15 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
         }
     }
 
+    func refresh() async {
+        await syncAllFromAPI()
+    }
+
     private func syncAllFromAPI() async {
-        guard let loadAll, let contentStore else { return }
         do {
             let updatedAfter = contentStore.updatedAfter(language: currentLanguage)
             let apiCallTime = SQLiteContentDatabase.syncDateString(from: Date())
-            let fetched = try await loadAll(updatedAfter).filter { $0.lang == currentLanguage }
+            let fetched = try await loadAll(updatedAfter)
             contentStore.save(
                 fetched,
                 language: currentLanguage,
@@ -201,25 +88,5 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
     private var trimmedSearch: String? {
         let value = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
-    }
-
-    private func filtered(_ source: [Item]) -> [Item] {
-        var result = source
-        if let search = trimmedSearch?.lowercased(), !search.isEmpty {
-            result = result.filter { $0.searchableText.lowercased().contains(search) }
-        }
-        if let selectedTag {
-            result = result.filter { $0.tags?.tagList().contains(where: { $0.caseInsensitiveCompare(selectedTag) == .orderedSame }) == true }
-        }
-
-        switch sortOrder {
-        case .displayOrder:
-            result.sort { $0.displayOrder < $1.displayOrder }
-        case .alpha:
-            result.sort { $0.sortTitle.localizedCaseInsensitiveCompare($1.sortTitle) == .orderedAscending }
-        case .recent:
-            result.sort { $0.updatedAt > $1.updatedAt }
-        }
-        return result
     }
 }

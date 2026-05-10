@@ -91,7 +91,7 @@ struct ArticleDetailScreen: View {
         }
         
         if !urls.isEmpty {
-            ImageCache.articles.prefetch(urlStrings: urls)
+            MediaCache.articles.prefetch(urlStrings: urls)
         }
     }
 }

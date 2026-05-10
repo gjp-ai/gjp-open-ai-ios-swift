@@ -49,14 +49,14 @@ struct AnalyticsScreen: View {
 
         do {
             let language = app.language
-            let loaded = try await [
-                AnalyticsMetric(kind: .websites, total: api.websites(page: 0, size: 1, language: language, name: nil, tags: nil).totalElements),
-                AnalyticsMetric(kind: .questions, total: api.questions(page: 0, size: 1, language: language, question: nil, tags: nil).totalElements),
-                AnalyticsMetric(kind: .articles, total: api.articles(page: 0, size: 1, language: language, title: nil, tags: nil).totalElements),
-                AnalyticsMetric(kind: .images, total: api.images(page: 0, size: 1, language: language, name: nil, tags: nil).totalElements),
-                AnalyticsMetric(kind: .videos, total: api.videos(page: 0, size: 1, language: language, name: nil, tags: nil).totalElements),
-                AnalyticsMetric(kind: .audios, total: api.audios(page: 0, size: 1, language: language, name: nil, tags: nil).totalElements),
-                AnalyticsMetric(kind: .files, total: api.files(page: 0, size: 1, language: language, name: nil, tags: nil).totalElements)
+            let loaded = [
+                AnalyticsMetric(kind: .websites, total: SQLiteContentDatabase.shared.count(key: "websites", language: language)),
+                AnalyticsMetric(kind: .questions, total: SQLiteContentDatabase.shared.count(key: "questions", language: language)),
+                AnalyticsMetric(kind: .articles, total: SQLiteContentDatabase.shared.count(key: "articles", language: language)),
+                AnalyticsMetric(kind: .images, total: SQLiteContentDatabase.shared.count(key: "images", language: language)),
+                AnalyticsMetric(kind: .videos, total: SQLiteContentDatabase.shared.count(key: "videos", language: language)),
+                AnalyticsMetric(kind: .audios, total: SQLiteContentDatabase.shared.count(key: "audios", language: language)),
+                AnalyticsMetric(kind: .files, total: SQLiteContentDatabase.shared.count(key: "files", language: language))
             ]
 
             state = loaded.isEmpty ? .empty : .content(loaded)
