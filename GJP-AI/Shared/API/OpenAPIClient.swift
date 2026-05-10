@@ -14,7 +14,7 @@ protocol HTTPSession {
 extension URLSession: HTTPSession {}
 
 final class OpenAPIClient {
-    static let productionBaseURL = URL(string: "https://www.ganjianping.com/api/open")!
+    static let productionBaseURL = AppConfig.API.baseURL
 
     private let baseURL: URL
     private let session: HTTPSession

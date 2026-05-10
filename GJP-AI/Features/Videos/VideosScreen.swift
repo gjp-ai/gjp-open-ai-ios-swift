@@ -5,7 +5,7 @@ struct VideosScreen: View {
     @StateObject private var viewModel: OpenListViewModel<MediaItem>
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 50, cacheKey: "videos") { page, size, language, search, tags in
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(cacheKey: "videos") { page, size, language, search, tags in
             try await api.videos(page: page, size: size, language: language, name: search, tags: tags)
         })
     }

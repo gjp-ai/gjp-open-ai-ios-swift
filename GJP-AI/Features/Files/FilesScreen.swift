@@ -5,7 +5,7 @@ struct FilesScreen: View {
     @StateObject private var viewModel: OpenListViewModel<FileItem>
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 50, cacheKey: "files") { page, size, language, search, tags in
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(cacheKey: "files") { page, size, language, search, tags in
             try await api.files(page: page, size: size, language: language, name: search, tags: tags)
         })
     }

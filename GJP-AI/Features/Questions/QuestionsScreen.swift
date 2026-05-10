@@ -5,7 +5,7 @@ struct QuestionsScreen: View {
     @StateObject private var viewModel: OpenListViewModel<Question>
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 100, cacheKey: "questions") { page, size, language, search, tags in
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: AppConfig.Pagination.largePageSize, cacheKey: "questions") { page, size, language, search, tags in
             try await api.questions(page: page, size: size, language: language, question: search, tags: tags)
         })
     }

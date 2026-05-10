@@ -6,7 +6,7 @@ struct AudiosScreen: View {
     @State private var activeItem: MediaItem?
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: 50, cacheKey: "audios") { page, size, language, search, tags in
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(cacheKey: "audios") { page, size, language, search, tags in
             try await api.audios(page: page, size: size, language: language, name: search, tags: tags)
         })
     }

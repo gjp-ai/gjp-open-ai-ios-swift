@@ -22,7 +22,7 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
     private var currentLanguage: LanguageCode = .en
     private var rawItems: [Item] = []
  
-    init(pageSize: Int = 50, cacheKey: String? = nil, imageCache: ImageCache? = nil, loadPage: @escaping (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>) {
+    init(pageSize: Int = AppConfig.Pagination.defaultPageSize, cacheKey: String? = nil, imageCache: ImageCache? = nil, loadPage: @escaping (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>) {
         self.pageSize = pageSize
         self.cacheKey = cacheKey
         self.imageCache = imageCache ?? .media
@@ -50,8 +50,8 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
             hasCachedContent = !items.isEmpty
             
             if let date = CacheManager.lastModified(forKey: "\(key)_\(language.rawValue)") {
-                // If cache is less than 30 minutes old, consider it fresh
-                isCacheFresh = Date().timeIntervalSince(date) < 30 * 60
+                // Check against freshness duration defined in AppConfig
+                isCacheFresh = Date().timeIntervalSince(date) < AppConfig.Cache.listFreshnessDuration
             }
 
             // Warm ImageCache in background for all cached items so images
