@@ -41,13 +41,19 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
         currentLanguage = language
  
         // Restore from disk cache immediately so the UI shows content at once
+        var isCacheFresh = false
         var hasCachedContent = false
         if let key = cacheKey, let cached: [Item] = CacheManager.load(forKey: "\(key)_\(language.rawValue)") {
             rawItems = cached
             updateFilteredItems()
             state = items.isEmpty ? .loading : .content(items)
             hasCachedContent = !items.isEmpty
- 
+            
+            if let date = CacheManager.lastModified(forKey: "\(key)_\(language.rawValue)") {
+                // If cache is less than 30 minutes old, consider it fresh
+                isCacheFresh = Date().timeIntervalSince(date) < 30 * 60
+            }
+
             // Warm ImageCache in background for all cached items so images
             // are ready before the user scrolls (avoids loading spinners on 2nd visit)
             let urls = cached.flatMap { $0.imageURLsForPrefetch }
@@ -56,10 +62,12 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
             state = .loading
         }
 
-        // Fetch fresh data from API — silently if we already showed cache
-        isBackgroundRefreshing = hasCachedContent
-        await fetch(reset: true)
-        isBackgroundRefreshing = false
+        if !isCacheFresh {
+            // Fetch fresh data from API — silently if we already showed cache
+            isBackgroundRefreshing = hasCachedContent
+            await fetch(reset: true)
+            isBackgroundRefreshing = false
+        }
     }
 
     func refresh() async {
