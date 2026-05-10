@@ -5,8 +5,8 @@ struct QuestionsScreen: View {
     @StateObject private var viewModel: OpenListViewModel<Question>
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: AppConfig.Pagination.largePageSize, cacheKey: "questions") { page, size, language, search, tags in
-            try await api.questions(page: page, size: size, language: language, question: search, tags: tags)
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(cacheKey: "questions") { updatedAfter in
+            try await api.allQuestions(updatedAfter: updatedAfter)
         })
     }
 
@@ -22,8 +22,6 @@ struct QuestionsScreen: View {
                 }
         }
         .task(id: app.language) { await viewModel.load(language: app.language) }
-        .onChange(of: viewModel.searchText) { _, _ in Task { await viewModel.refresh() } }
-        .onChange(of: viewModel.selectedTag) { _, _ in Task { await viewModel.refresh() } }
     }
 
     @ViewBuilder private var content: some View {

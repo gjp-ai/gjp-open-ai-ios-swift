@@ -6,8 +6,8 @@ struct ImagesScreen: View {
     @State private var selectedImage: MediaItem?
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(cacheKey: "images", imageCache: .media) { page, size, language, search, tags in
-            try await api.images(page: page, size: size, language: language, name: search, tags: tags)
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(cacheKey: "images", imageCache: .media) { updatedAfter in
+            try await api.allImages(updatedAfter: updatedAfter)
         })
     }
 
@@ -23,8 +23,6 @@ struct ImagesScreen: View {
                 }
         }
         .task(id: app.language) { await viewModel.load(language: app.language) }
-        .onChange(of: viewModel.searchText) { _, _ in Task { await viewModel.refresh() } }
-        .onChange(of: viewModel.selectedTag) { _, _ in Task { await viewModel.refresh() } }
         .sheet(item: $selectedImage) { item in
             ImagePreviewSheet(item: item, items: viewModel.items)
         }

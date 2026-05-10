@@ -84,7 +84,7 @@ struct Website: OpenListItem {
     let displayOrder: Int
     let updatedAt: String
 
-    var searchableText: String { [name, description, tags].compactMap { $0 }.joined(separator: " ") }
+    var searchableText: String { [name, url, description, tags].compactMap { $0 }.joined(separator: " ") }
     var sortTitle: String { name }
     var imageURLsForPrefetch: [String] { [logoUrl].compactMap { $0 } }
 }
@@ -116,7 +116,7 @@ struct ArticleSummary: OpenListItem {
     let updatedAt: String
     let content: String?
 
-    var searchableText: String { [title, summary, tags].compactMap { $0 }.joined(separator: " ") }
+    var searchableText: String { [title, summary, content?.strippingHTML(), tags].compactMap { $0 }.joined(separator: " ") }
     var sortTitle: String { title }
     var imageURLsForPrefetch: [String] { [coverImageUrl].compactMap { $0 } }
 }
@@ -142,7 +142,7 @@ struct MediaItem: OpenListItem {
 
     var displayTitle: String { title ?? name ?? id }
     var imageURL: String? { url }
-    var searchableText: String { [title, name, description, artist, tags].compactMap { $0 }.joined(separator: " ") }
+    var searchableText: String { [title, name, description, altText, artist, tags].compactMap { $0 }.joined(separator: " ") }
     var sortTitle: String { displayTitle }
     var imageURLsForPrefetch: [String] {
         [url].compactMap { $0 }

@@ -12,8 +12,8 @@ struct WebsitesScreen: View {
     ]
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(pageSize: AppConfig.Pagination.largePageSize, cacheKey: "websites", imageCache: .websites) { page, size, language, search, tags in
-            try await api.websites(page: page, size: size, language: language, name: search, tags: tags)
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(cacheKey: "websites", imageCache: .websites) { updatedAfter in
+            try await api.allWebsites(updatedAfter: updatedAfter)
         })
     }
 
@@ -29,8 +29,6 @@ struct WebsitesScreen: View {
                 }
         }
         .task(id: app.language) { await viewModel.load(language: app.language) }
-        .onChange(of: viewModel.searchText) { _, _ in Task { await viewModel.refresh() } }
-        .onChange(of: viewModel.selectedTag) { _, _ in Task { await viewModel.refresh() } }
         .fullScreenCover(item: $selectedWebsite) { website in
             WebsiteBrowserSheet(website: website)
         }

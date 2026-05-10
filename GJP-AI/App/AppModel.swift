@@ -156,6 +156,9 @@ enum L10n {
         "mediaCache": [.en: "Media Cache", .zh: "媒体缓存"],
         "clearAllCache": [.en: "Clear All Cache", .zh: "清空所有缓存"],
         "clear": [.en: "Clear", .zh: "清空"],
+        "databaseRows": [.en: "{count} database rows", .zh: "{count} 条数据库记录"],
+        "databaseSize": [.en: "Stored data: {size}", .zh: "已存数据：{size}"],
+        "lastUpdate": [.en: "Last Update", .zh: "最后更新"],
         "websiteLogos": [.en: "Website Logos", .zh: "网站图标"],
         "articleCovers": [.en: "Article Cover Images", .zh: "文章封面"],
         "brandName": [.en: "GJP AI", .zh: "GJP AI"]

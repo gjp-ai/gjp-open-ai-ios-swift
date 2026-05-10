@@ -3,12 +3,10 @@ import SwiftUI
 struct ArticlesScreen: View {
     @EnvironmentObject private var app: AppModel
     @StateObject private var viewModel: OpenListViewModel<ArticleSummary>
-    private let api: OpenAPIClient
 
     init(api: OpenAPIClient = OpenAPIClient()) {
-        self.api = api
-        _viewModel = StateObject(wrappedValue: OpenListViewModel(cacheKey: "articles", imageCache: .articles) { page, size, language, search, tags in
-            try await api.articles(page: page, size: size, language: language, title: search, tags: tags)
+        _viewModel = StateObject(wrappedValue: OpenListViewModel(cacheKey: "articles", imageCache: .articles) { updatedAfter in
+            try await api.allArticles(updatedAfter: updatedAfter)
         })
     }
 
@@ -24,8 +22,6 @@ struct ArticlesScreen: View {
                 }
         }
         .task(id: app.language) { await viewModel.load(language: app.language) }
-        .onChange(of: viewModel.searchText) { _, _ in Task { await viewModel.refresh() } }
-        .onChange(of: viewModel.selectedTag) { _, _ in Task { await viewModel.refresh() } }
     }
 
     @ViewBuilder private var content: some View {

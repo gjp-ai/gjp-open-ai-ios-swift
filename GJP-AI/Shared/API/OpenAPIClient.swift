@@ -34,8 +34,16 @@ final class OpenAPIClient {
         try await fetchPage("websites", page: page, size: size, language: language, searchName: "name", searchValue: name, tags: tags)
     }
 
+    func allWebsites(updatedAfter: String?) async throws -> [Website] {
+        try await fetchAll("websites/all", updatedAfter: updatedAfter)
+    }
+
     func questions(page: Int, size: Int, language: LanguageCode, question: String?, tags: String?) async throws -> PagedData<Question> {
         try await fetchPage("questions", page: page, size: size, language: language, searchName: "question", searchValue: question, tags: tags)
+    }
+
+    func allQuestions(updatedAfter: String?) async throws -> [Question] {
+        try await fetchAll("questions/all", updatedAfter: updatedAfter)
     }
 
     func articles(page: Int, size: Int, language: LanguageCode, title: String?, tags: String?) async throws -> PagedData<ArticleSummary> {
@@ -44,8 +52,16 @@ final class OpenAPIClient {
         ])
     }
 
+    func allArticles(updatedAfter: String?) async throws -> [ArticleSummary] {
+        try await fetchAll("articles/all", updatedAfter: updatedAfter)
+    }
+
     func images(page: Int, size: Int, language: LanguageCode, name: String?, tags: String?) async throws -> PagedData<MediaItem> {
         try await fetchPage("images", page: page, size: size, language: language, searchName: "name", searchValue: name, tags: tags)
+    }
+
+    func allImages(updatedAfter: String?) async throws -> [MediaItem] {
+        try await fetchAll("images/all", updatedAfter: updatedAfter)
     }
 
     func videos(page: Int, size: Int, language: LanguageCode, name: String?, tags: String?) async throws -> PagedData<MediaItem> {
@@ -89,6 +105,16 @@ final class OpenAPIClient {
             items.append(URLQueryItem(name: "tags", value: trimmedTags))
         }
 
+        return try await fetch(path, queryItems: items)
+    }
+
+    private func fetchAll<T: Codable>(_ path: String, updatedAfter: String?) async throws -> [T] {
+        var items = [
+            URLQueryItem(name: "isActive", value: "true")
+        ]
+        if let updatedAfter {
+            items.append(URLQueryItem(name: "updatedAfter", value: updatedAfter))
+        }
         return try await fetch(path, queryItems: items)
     }
 

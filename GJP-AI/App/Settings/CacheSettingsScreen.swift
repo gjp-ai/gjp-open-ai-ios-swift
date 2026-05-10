@@ -4,6 +4,7 @@ struct CacheSettingsScreen: View {
     @EnvironmentObject private var app: AppModel
     @State private var cacheSizes: [String: Int64] = [:]
     @State private var cacheDates: [String: Date?] = [:]
+    @State private var databaseStats: [String: SQLiteContentStats] = [:]
     @State private var imageCacheSize: Int = 0
 
     private let dateFormatter: RelativeDateTimeFormatter = {
@@ -17,12 +18,12 @@ struct CacheSettingsScreen: View {
             Section {
                 let settingsDate = userDefaultsDate()
                 cacheRow(title: L10n.text("settings", app.language), size: userDefaultsSize(), date: settingsDate, clearAction: clearAppSettings) {
-                    CacheDataViewerScreen(title: L10n.text("settings", app.language), key: nil, clearAction: clearAppSettings, dates: [settingsDate].compactMap { $0 })
+                    CacheDataViewerScreen(title: L10n.text("settings", app.language), clearAction: clearAppSettings, dates: [settingsDate].compactMap { $0 })
                 }
-                cacheRow(title: L10n.text("websites", app.language), key: "websites")
-                cacheRow(title: L10n.text("questions", app.language), key: "questions")
-                cacheRow(title: L10n.text("articles", app.language), key: "articles")
-                cacheRow(title: L10n.text("images", app.language), key: "images")
+                databaseRow(title: L10n.text("websites", app.language), key: "websites")
+                databaseRow(title: L10n.text("questions", app.language), key: "questions")
+                databaseRow(title: L10n.text("articles", app.language), key: "articles")
+                databaseRow(title: L10n.text("images", app.language), key: "images")
             } header: {
                 Text(L10n.text("dataCache", app.language))
             }
@@ -54,20 +55,18 @@ struct CacheSettingsScreen: View {
         .onAppear(perform: loadSizes)
     }
 
-    private func cacheRow(title: String, key: String) -> some View {
-        let size = (cacheSizes["\(key)_EN"] ?? 0) + (cacheSizes["\(key)_ZH"] ?? 0)
-        let date = [cacheDates["\(key)_EN"] ?? nil, cacheDates["\(key)_ZH"] ?? nil].compactMap { $0 }.sorted().last
-        
+    private func databaseRow(title: String, key: String) -> some View {
+        let stats = databaseStats[key]
         let clearAction = {
+            SQLiteContentDatabase.shared.clear(key: key)
             CacheManager.clear(forKey: "\(key)_EN")
             CacheManager.clear(forKey: "\(key)_ZH")
             loadSizes()
         }
-        
-        let dates = [cacheDates["\(key)_EN"] ?? nil, cacheDates["\(key)_ZH"] ?? nil].compactMap { $0 }
-        
-        return cacheRow(title: title, size: size, date: date, clearAction: clearAction) {
-            CacheDataViewerScreen(title: title, key: key, clearAction: clearAction, dates: dates)
+        let rowTitle = "\(title) (\(stats?.count ?? 0))"
+
+        return cacheRow(title: rowTitle, size: stats?.size ?? 0, date: stats?.lastModified ?? nil, clearAction: clearAction) {
+            SQLiteDataViewerScreen(title: title, key: key, clearAction: clearAction, stats: stats)
         }
     }
 
@@ -110,12 +109,8 @@ struct CacheSettingsScreen: View {
 
     private func loadSizes() {
         let keys = ["websites", "questions", "articles", "images"]
-        for key in keys {
-            cacheSizes["\(key)_EN"] = CacheManager.size(forKey: "\(key)_EN")
-            cacheSizes["\(key)_ZH"] = CacheManager.size(forKey: "\(key)_ZH")
-            cacheDates["\(key)_EN"] = CacheManager.lastModified(forKey: "\(key)_EN")
-            cacheDates["\(key)_ZH"] = CacheManager.lastModified(forKey: "\(key)_ZH")
-        }
+        clearLegacyPayloadCaches(for: keys)
+        databaseStats = SQLiteContentDatabase.shared.stats(for: keys)
         
         // Media buckets
         cacheSizes["media_websites"] = Int64(ImageCache.websites.diskSize)
@@ -152,11 +147,94 @@ struct CacheSettingsScreen: View {
     
     private func clearAll() {
         CacheManager.clearAll()
+        SQLiteContentDatabase.shared.clearAll()
         ImageCache.websites.clear()
         ImageCache.articles.clear()
         ImageCache.media.clear()
         UserDefaults.standard.removeObject(forKey: "gjp.appSettings.cache")
         loadSizes()
+    }
+
+    private func clearLegacyPayloadCaches(for keys: [String]) {
+        for key in keys {
+            CacheManager.clear(forKey: "\(key)_EN")
+            CacheManager.clear(forKey: "\(key)_ZH")
+            cacheSizes["\(key)_EN"] = 0
+            cacheSizes["\(key)_ZH"] = 0
+            cacheDates["\(key)_EN"] = nil
+            cacheDates["\(key)_ZH"] = nil
+        }
+    }
+}
+
+private struct SQLiteDataViewerScreen: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var app: AppModel
+    let title: String
+    let key: String
+    let clearAction: () -> Void
+    let stats: SQLiteContentStats?
+    @State private var rawData: String = ""
+
+    private var lastUpdateString: String? {
+        guard let latest = stats?.lastModified else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .medium
+        return formatter.string(from: latest)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L10n.text("databaseRows", app.language, ["count": String(stats?.count ?? 0)]))
+                    Text(L10n.text("databaseSize", app.language, [
+                        "size": ByteCountFormatter.string(fromByteCount: stats?.size ?? 0, countStyle: .file)
+                    ]))
+                    if let updateString = lastUpdateString {
+                        Text("\(L10n.text("lastUpdate", app.language)): \(updateString)")
+                    }
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
+                .padding(.top, 8)
+
+                if rawData.isEmpty {
+                    ProgressView()
+                        .padding()
+                } else {
+                    Text(rawData)
+                        .font(.system(.caption2, design: .monospaced))
+                        .padding()
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .navigationTitle(title)
+        .onAppear(perform: loadData)
+        .background(Color(.systemBackground))
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .destructive) {
+                    clearAction()
+                    dismiss()
+                } label: {
+                    Text(L10n.text("clear", app.language))
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+    }
+
+    private func loadData() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let content = SQLiteContentDatabase.shared.rowSummary(for: key)
+            DispatchQueue.main.async {
+                self.rawData = content
+            }
+        }
     }
 }
 
@@ -164,7 +242,6 @@ private struct CacheDataViewerScreen: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var app: AppModel
     let title: String
-    let key: String?
     let clearAction: () -> Void
     let dates: [Date]
     @State private var rawData: String = ""
@@ -217,21 +294,8 @@ private struct CacheDataViewerScreen: View {
 
     private func loadData() {
         DispatchQueue.global(qos: .userInitiated).async {
-            let content: String
-            if let key = key {
-                var text = ""
-                if let en = CacheManager.loadRaw(forKey: "\(key)_EN") {
-                    text += "--- EN ---\n\(prettyPrint(en))\n\n"
-                }
-                if let zh = CacheManager.loadRaw(forKey: "\(key)_ZH") {
-                    text += "--- ZH ---\n\(prettyPrint(zh))\n"
-                }
-                content = text.isEmpty ? "No data found." : text
-            } else {
-                let settings = UserDefaults.standard.string(forKey: "gjp.appSettings.cache") ?? "No data found."
-                content = prettyPrint(settings)
-            }
-            
+            let settings = UserDefaults.standard.string(forKey: "gjp.appSettings.cache") ?? "No data found."
+            let content = prettyPrint(settings)
             DispatchQueue.main.async {
                 self.rawData = content
             }

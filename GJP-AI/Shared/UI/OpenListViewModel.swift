@@ -17,7 +17,9 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
 
     private let pageSize: Int
     private let loadPage: (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>
+    private let loadAll: ((String?) async throws -> [Item])?
     private let cacheKey: String?
+    private let contentStore: SQLiteContentStore<Item>?
     private let imageCache: ImageCache
     private var currentLanguage: LanguageCode = .en
     private var rawItems: [Item] = []
@@ -25,12 +27,36 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
     init(pageSize: Int = AppConfig.Pagination.defaultPageSize, cacheKey: String? = nil, imageCache: ImageCache? = nil, loadPage: @escaping (Int, Int, LanguageCode, String?, String?) async throws -> PagedData<Item>) {
         self.pageSize = pageSize
         self.cacheKey = cacheKey
+        self.contentStore = nil
         self.imageCache = imageCache ?? .media
         self.loadPage = loadPage
+        self.loadAll = nil
+    }
+
+    init(cacheKey: String, imageCache: ImageCache? = nil, loadAll: @escaping (String?) async throws -> [Item]) {
+        self.pageSize = Int.max
+        self.cacheKey = cacheKey
+        self.contentStore = SQLiteContentStore(key: cacheKey)
+        self.imageCache = imageCache ?? .media
+        self.loadPage = { _, _, _, _, _ in PagedData(content: [], page: 0, size: 0, totalElements: 0, totalPages: 1) }
+        self.loadAll = loadAll
     }
  
     private func updateFilteredItems() {
-        items = filtered(rawItems)
+        if let contentStore {
+            items = contentStore.query(
+                language: currentLanguage,
+                search: trimmedSearch,
+                tag: selectedTag,
+                sortOrder: sortOrder
+            )
+            totalElements = items.count
+            totalPages = 1
+            currentPage = 0
+            state = items.isEmpty ? .empty : .content(items)
+        } else {
+            items = filtered(rawItems)
+        }
     }
  
     var canLoadMore: Bool {
@@ -39,6 +65,11 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
  
     func load(language: LanguageCode) async {
         currentLanguage = language
+
+        if contentStore != nil {
+            await loadFromSQLiteBackedSync()
+            return
+        }
  
         // Restore from disk cache immediately so the UI shows content at once
         var isCacheFresh = false
@@ -71,6 +102,10 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
     }
 
     func refresh() async {
+        if contentStore != nil {
+            await syncAllFromAPI()
+            return
+        }
         await fetch(reset: true)
     }
 
@@ -118,6 +153,51 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
         }
     }
 
+    private func loadFromSQLiteBackedSync() async {
+        guard let contentStore else { return }
+        updateFilteredItems()
+        let cachedCount = contentStore.count(language: currentLanguage)
+        let lastSync = contentStore.lastModified(language: currentLanguage)
+        let isCacheFresh = lastSync.map { Date().timeIntervalSince($0) < AppConfig.Cache.listFreshnessDuration } ?? false
+
+        if cachedCount == 0 {
+            state = .loading
+        } else {
+            let urls = items.flatMap { $0.imageURLsForPrefetch }
+            imageCache.prefetch(urlStrings: urls)
+        }
+
+        if !isCacheFresh {
+            isBackgroundRefreshing = cachedCount > 0
+            await syncAllFromAPI()
+            isBackgroundRefreshing = false
+        }
+    }
+
+    private func syncAllFromAPI() async {
+        guard let loadAll, let contentStore else { return }
+        do {
+            let updatedAfter = contentStore.updatedAfter(language: currentLanguage)
+            let apiCallTime = SQLiteContentDatabase.syncDateString(from: Date())
+            let fetched = try await loadAll(updatedAfter).filter { $0.lang == currentLanguage }
+            contentStore.save(
+                fetched,
+                language: currentLanguage,
+                replaceExisting: updatedAfter == nil,
+                successfulSyncDate: apiCallTime
+            )
+            updateFilteredItems()
+            let urls = fetched.flatMap { $0.imageURLsForPrefetch }
+            imageCache.prefetch(urlStrings: urls)
+        } catch {
+            if items.isEmpty {
+                state = .error(error.localizedDescription)
+            } else {
+                print("Full sync failed, using local database: \(error)")
+            }
+        }
+    }
+
     private var trimmedSearch: String? {
         let value = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
@@ -143,4 +223,3 @@ final class OpenListViewModel<Item: OpenListItem>: ObservableObject {
         return result
     }
 }
-
