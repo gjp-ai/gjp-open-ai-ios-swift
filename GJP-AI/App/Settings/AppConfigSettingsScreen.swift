@@ -2,6 +2,13 @@ import SwiftUI
 
 struct AppConfigSettingsScreen: View {
     @EnvironmentObject private var app: AppModel
+    
+    @AppStorage("AppConfig.Cache.listFreshnessDuration") private var listFreshnessDuration: Double = 30 * 60
+    @AppStorage("AppConfig.Cache.Media.websitesCapacity") private var websitesCapacity: Int = 50 * 1024 * 1024
+    @AppStorage("AppConfig.Cache.Media.articlesCapacity") private var articlesCapacity: Int = 100 * 1024 * 1024
+    @AppStorage("AppConfig.Cache.Media.mediaNamespace") private var mediaNamespace: String = "media"
+    @AppStorage("AppConfig.Cache.Media.videosNamespace") private var videosNamespace: String = "videos"
+    @AppStorage("AppConfig.Cache.Media.audiosNamespace") private var audiosNamespace: String = "audios"
 
     var body: some View {
         List {
@@ -12,31 +19,80 @@ struct AppConfigSettingsScreen: View {
             }
 
             Section {
-                DetailRow(label: "Cache Duration", value: "\(Int(AppConfig.Cache.listFreshnessDuration / 60)) minutes")
+                HStack {
+                    Text("Cache Duration")
+                    Spacer()
+                    TextField("Minutes", value: Binding(
+                        get: { Int(listFreshnessDuration / 60) },
+                        set: { listFreshnessDuration = Double($0) * 60 }
+                    ), formatter: NumberFormatter())
+                    .multilineTextAlignment(.trailing)
+                    .keyboardType(.numberPad)
+                    Text("min")
+                        .foregroundStyle(.secondary)
+                }
                 DetailRow(label: "Data Folder", value: AppConfig.Cache.folderName)
             } header: {
                 Text("Database Policies")
             }
 
             Section {
-                let media = AppConfig.Cache.Media.self
-                DetailRow(label: "Websites", value: "\(media.websitesNamespace) (\(media.websitesCapacity / 1024 / 1024)MB)")
-                DetailRow(label: "Articles", value: "\(media.articlesNamespace) (\(media.articlesCapacity / 1024 / 1024)MB)")
-                DetailRow(label: "Images", value: "\(media.mediaNamespace) (\(media.mediaCapacity / 1024 / 1024)MB)")
-                DetailRow(label: "Videos", value: "\(media.videosNamespace) (\(media.videosCapacity / 1024 / 1024)MB)")
-                DetailRow(label: "Audios", value: "\(media.audiosNamespace) (\(media.audiosCapacity / 1024 / 1024)MB)")
+                Group {
+                    EditableCapacityRow(label: "Websites Capacity", value: $websitesCapacity)
+                    EditableCapacityRow(label: "Articles Capacity", value: $articlesCapacity)
+                    
+                    EditableNamespaceRow(label: "Media Namespace", value: $mediaNamespace)
+                    EditableNamespaceRow(label: "Videos Namespace", value: $videosNamespace)
+                    EditableNamespaceRow(label: "Audios Namespace", value: $audiosNamespace)
+                }
             } header: {
                 Text("Media Cache Policies")
             }
             
             Section {
-                Text("These settings are compile-time constants used to configure the app's networking and persistence behavior.")
+                Text("Changes to namespaces or capacities will take full effect after an app restart or cache reload.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .navigationTitle("App Config")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct EditableCapacityRow: View {
+    let label: String
+    @Binding var value: Int
+    
+    var body: some View {
+        HStack {
+            Text(label)
+            Spacer()
+            TextField("MB", value: Binding(
+                get: { value / 1024 / 1024 },
+                set: { value = $0 * 1024 * 1024 }
+            ), formatter: NumberFormatter())
+            .multilineTextAlignment(.trailing)
+            .keyboardType(.numberPad)
+            Text("MB")
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct EditableNamespaceRow: View {
+    let label: String
+    @Binding var value: String
+    
+    var body: some View {
+        HStack {
+            Text(label)
+            Spacer()
+            TextField("Namespace", text: $value)
+                .multilineTextAlignment(.trailing)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+        }
     }
 }
 
