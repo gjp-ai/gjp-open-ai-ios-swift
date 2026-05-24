@@ -15,6 +15,7 @@ extension URLSession: HTTPSession {}
 
 final class OpenAPIClient {
     static let productionBaseURL = AppConfig.API.baseURL
+    private static let channel = "AI"
 
     private let baseURL: URL
     private let session: HTTPSession
@@ -76,7 +77,7 @@ final class OpenAPIClient {
         guard var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
             throw APIError.invalidURL
         }
-        components.queryItems = queryItems.isEmpty ? nil : queryItems
+        components.queryItems = [URLQueryItem(name: "channel", value: Self.channel)] + queryItems.filter { $0.name != "channel" }
 
         guard let url = components.url else {
             throw APIError.invalidURL

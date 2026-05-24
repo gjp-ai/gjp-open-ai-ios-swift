@@ -3,19 +3,30 @@ import Testing
 @testable import GJP_AI
 
 struct GJP_AITests {
-    @Test func apiClientUsesCanonicalWebsiteFilters() async throws {
+    @Test func apiClientAddsChannelToAllRequests() async throws {
         let session = MockSession(payload: """
-        {"status":{"code":200,"message":"OK","errors":null},"data":{"content":[],"page":0,"size":50,"totalElements":0,"totalPages":0}}
+        {"status":{"code":200,"message":"OK","errors":null},"data":[]}
         """)
         let client = OpenAPIClient(baseURL: URL(string: "https://example.com/api/open/")!, session: session)
 
-        _ = try await client.websites(page: 0, size: 50, language: .en, name: "chat", tags: "Tools")
+        _ = try await client.appSettings()
 
         let query = try #require(URLComponents(url: session.lastURL, resolvingAgainstBaseURL: false)?.queryItems)
-        #expect(query.contains(URLQueryItem(name: "name", value: "chat")))
-        #expect(query.contains(URLQueryItem(name: "tags", value: "Tools")))
+        #expect(query.contains(URLQueryItem(name: "channel", value: "AI")))
+    }
+
+    @Test func apiClientPreservesListFiltersWithChannel() async throws {
+        let session = MockSession(payload: """
+        {"status":{"code":200,"message":"OK","errors":null},"data":[]}
+        """)
+        let client = OpenAPIClient(baseURL: URL(string: "https://example.com/api/open/")!, session: session)
+
+        _ = try await client.allWebsites(updatedAfter: "2026-05-24T12:00:00")
+
+        let query = try #require(URLComponents(url: session.lastURL, resolvingAgainstBaseURL: false)?.queryItems)
+        #expect(query.contains(URLQueryItem(name: "channel", value: "AI")))
         #expect(query.contains(URLQueryItem(name: "isActive", value: "true")))
-        #expect(!query.contains { $0.name == "search" || $0.name == "tag" })
+        #expect(query.contains(URLQueryItem(name: "updatedAfter", value: "2026-05-24T12:00:00")))
     }
 
     @Test func listViewModelFiltersAndSortsLocally() async throws {

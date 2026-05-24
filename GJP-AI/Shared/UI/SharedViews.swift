@@ -371,18 +371,45 @@ struct LoadMoreButton: View {
 }
 
 struct VideoPlayerView: View {
-    let item: MediaItem
+    let player: AVPlayer
 
     var body: some View {
-        if let urlString = item.url, let url = URL(string: urlString) {
-            VideoPlayer(player: AVPlayer(url: url))
-                .frame(minHeight: 220)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
-        } else {
-            ContentUnavailableView(item.displayTitle, systemImage: "video.slash")
+        VideoPlayer(player: player)
+            .aspectRatio(16 / 9, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .background(Color.black)
+    }
+}
+
+struct FullScreenVideoPlayer: View {
+    let player: AVPlayer
+    let close: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+            VideoPlayer(player: player)
+                .ignoresSafeArea()
+            Button(action: close) {
+                Image(systemName: "xmark")
+                    .font(.headline.weight(.semibold))
+                    .frame(width: 44, height: 44)
+                    .foregroundStyle(.white)
+                    .background(.black.opacity(0.55), in: Circle())
+            }
+            .padding()
         }
     }
+}
+
+struct ActivityView: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - BackgroundRefreshBanner
